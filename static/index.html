@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ScoreOCR Toolkit - 視覺化樂譜校對畫布</title>
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --bg-panel: #1e293b;
+      --bg-card: #334155;
+      --border-color: #475569;
+      --primary: #38bdf8;
+      --primary-hover: #0ea5e9;
+      --accent-note: #06b6d4;
+      --accent-selected: #facc15;
+      --accent-rest: #f97316;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      background: #0284c7;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-card);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background-color: #475569;
+      border-color: #64748b;
+    }
+
+    button.primary {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: #0f172a;
+      font-weight: 600;
+    }
+
+    button.primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button.success {
+      background-color: var(--success);
+      border-color: var(--success);
+      color: #fff;
+    }
+
+    button.danger {
+      background-color: var(--danger);
+      border-color: var(--danger);
+      color: #fff;
+    }
+
+    button.active {
+      background-color: var(--primary);
+      color: #0f172a;
+      border-color: #38bdf8;
+    }
+
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 57px);
+      overflow: hidden;
+    }
+
+    /* Canvas Viewport */
+    .canvas-viewport {
+      flex: 1;
+      background: #090d16;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-color);
+      padding: 4px 8px;
+      border-radius: 8px;
+      display: flex;
+      gap: 6px;
+      z-index: 5;
+    }
+
+    .canvas-wrapper {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+      cursor: default;
+    }
+
+    .canvas-wrapper.pan-mode {
+      cursor: grab;
+    }
+
+    .canvas-wrapper.pan-mode:active {
+      cursor: grabbing;
+    }
+
+    .canvas-wrapper.add-mode {
+      cursor: crosshair;
+    }
+
+    #scoreCanvas {
+      display: block;
+      transform-origin: 0 0;
+    }
+
+    /* Sidebar Inspector */
+    .sidebar {
+      width: 360px;
+      background-color: var(--bg-panel);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .form-control, select, input[type="text"], input[type="number"] {
+      width: 100%;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+    }
+
+    .form-control:focus, select:focus, input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+    }
+
+    .pitch-pad {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+      margin-bottom: 8px;
+    }
+
+    .pitch-pad button {
+      padding: 8px 0;
+      text-align: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    .accidental-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .coord-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .symbol-list {
+      flex: 1;
+      max-height: 240px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-card);
+    }
+
+    .symbol-item {
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.8rem;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .symbol-item:hover {
+      background: #475569;
+    }
+
+    .symbol-item.selected {
+      background: rgba(56, 189, 248, 0.2);
+      border-left: 3px solid var(--primary);
+    }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    #loadingOverlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <h1>ScoreOCR Toolkit</h1>
+      <span class="badge">畫布校對 MVP</span>
+    </div>
+    <div class="actions">
+      <input type="file" id="fileInput" accept="image/*" style="display: none;">
+      <button onclick="document.getElementById('fileInput').click()">📁 上傳樂譜圖片</button>
+      <button onclick="loadSampleScore()">🎼 載入示範樂譜</button>
+      <button class="primary" id="btnRecognize" onclick="runRecognition()">⚡ 辨識與產生音符框</button>
+      <button class="success" id="btnDownloadXml" onclick="downloadXml()" style="display: none;">📥 下載 MusicXML</button>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <!-- Canvas Viewport -->
+    <div class="canvas-viewport">
+      <div class="canvas-toolbar">
+        <button id="toolSelect" class="active" onclick="setTool('select')">👆 選取</button>
+        <button id="toolAdd" onclick="setTool('add')">➕ 新增音符</button>
+        <button id="toolPan" onclick="setTool('pan')">✋ 拖曳平移</button>
+        <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
+        <button onclick="changeZoom(0.15)">🔍 放大</button>
+        <button onclick="changeZoom(-0.15)">🔎 縮小</button>
+        <button onclick="resetZoom()">1:1 復原</button>
+      </div>
+
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="scoreCanvas"></canvas>
+      </div>
+
+      <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p id="loadingText">正在由 HOMR 模型推論並提取五線譜音符框...</p>
+      </div>
+    </div>
+
+    <!-- Sidebar Inspector -->
+    <div class="sidebar">
+      <!-- Selected Symbol Inspector -->
+      <div class="section">
+        <div class="section-title">
+          <span>音符檢視與校對</span>
+          <span id="selectedIdText" style="color: var(--primary);">未選取</span>
+        </div>
+
+        <div id="inspectorForm">
+          <div class="form-group">
+            <label>音高 (Pitch)</label>
+            <div class="pitch-pad">
+              <button onclick="setBasePitch('C')">C</button>
+              <button onclick="setBasePitch('D')">D</button>
+              <button onclick="setBasePitch('E')">E</button>
+              <button onclick="setBasePitch('F')">F</button>
+              <button onclick="setBasePitch('G')">G</button>
+              <button onclick="setBasePitch('A')">A</button>
+              <button onclick="setBasePitch('B')">B</button>
+            </div>
+            <div class="accidental-pad">
+              <button id="btnAccNone" onclick="setAccidental('')">♮ 本位</button>
+              <button id="btnAccSharp" onclick="setAccidental('#')">♯ 升記號</button>
+              <button id="btnAccFlat" onclick="setAccidental('b')">♭ 降記號</button>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <select id="octaveSelect" onchange="updatePitchFromComponents()">
+                <option value="2">八度 2</option>
+                <option value="3">八度 3</option>
+                <option value="4" selected>八度 4 (中央C)</option>
+                <option value="5">八度 5</option>
+                <option value="6">八度 6</option>
+              </select>
+              <input type="text" id="pitchInput" placeholder="例如 C#4" onchange="onPitchManualChange()">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>音符時值 (Duration)</label>
+            <select id="durationSelect" onchange="onFieldChange('duration', this.value)">
+              <option value="whole">全音符 (Whole)</option>
+              <option value="half">二分音符 (Half)</option>
+              <option value="quarter" selected>四分音符 (Quarter)</option>
+              <option value="eighth">八分音符 (Eighth)</option>
+              <option value="16th">十六分音符 (16th)</option>
+              <option value="32nd">三十二分音符 (32nd)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>類型 (Type)</label>
+            <select id="typeSelect" onchange="onFieldChange('type', this.value)">
+              <option value="note">音符 (Note)</option>
+              <option value="rest">休止符 (Rest)</option>
+              <option value="chord">和弦音 (Chord)</option>
+              <option value="clef">譜號 (Clef)</option>
+              <option value="barline">小節線 (Barline)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>外框座標 (X, Y, W, H)</label>
+            <div class="coord-grid">
+              <input type="number" id="coordX" onchange="onCoordChange('x', this.value)" placeholder="X">
+              <input type="number" id="coordY" onchange="onCoordChange('y', this.value)" placeholder="Y">
+              <input type="number" id="coordW" onchange="onCoordChange('width', this.value)" placeholder="W">
+              <input type="number" id="coordH" onchange="onCoordChange('height', this.value)" placeholder="H">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <button class="danger" style="flex: 1;" onclick="deleteSelectedSymbol()">🗑 刪除此音符</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Symbols Overview List -->
+      <div class="section" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="section-title">
+          <span>辨識音符清單</span>
+          <span id="symbolCountBadge" class="badge">0 個音符</span>
+        </div>
+        <div class="symbol-list" id="symbolListContainer">
+          <!-- Filled dynamically -->
+        </div>
+        <p class="hint">提示：在畫布上直接點選音符外框即可校對；拖曳框框可調整位置，按 Delete 鍵可直接刪除。</p>
+      </div>
+
+      <!-- Export Actions -->
+      <div class="section">
+        <button class="success" style="width: 100%; justify-content: center; padding: 10px 0;" onclick="exportCorrectedXml()">
+          💾 儲存並匯出校對後 MusicXML
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('scoreCanvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+
+    let currentImage = null;
+    let currentImageFile = null;
+    let symbols = [];
+    let selectedSymbol = null;
+    let currentTool = 'select'; // 'select', 'add', 'pan'
+    let zoomLevel = 1.0;
+    let downloadUrl = null;
+
+    // Pan state
+    let isPanning = false;
+    let panStartX = 0, panStartY = 0;
+    let scrollStartX = 0, scrollStartY = 0;
+
+    // Drag/Resize state
+    let isDragging = false;
+    let dragMode = null; // 'move', 'resize-se'
+    let dragOffsetX = 0, dragOffsetY = 0;
+
+    // Initialize
+    window.onload = () => {
+      loadSampleScore();
+    };
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.canvas-toolbar button').forEach(b => b.classList.remove('active'));
+      if (tool === 'select') document.getElementById('toolSelect').classList.add('active');
+      if (tool === 'add') document.getElementById('toolAdd').classList.add('active');
+      if (tool === 'pan') document.getElementById('toolPan').classList.add('active');
+
+      wrapper.className = 'canvas-wrapper';
+      if (tool === 'pan') wrapper.classList.add('pan-mode');
+      if (tool === 'add') wrapper.classList.add('add-mode');
+    }
+
+    function showLoading(msg) {
+      document.getElementById('loadingText').innerText = msg;
+      document.getElementById('loadingOverlay').style.display = 'flex';
+    }
+
+    function hideLoading() {
+      document.getElementById('loadingOverlay').style.display = 'none';
+    }
+
+    // Load Image onto Canvas
+    function setImage(src, callback) {
+      const img = new Image();
+      img.onload = () => {
+        currentImage = img;
+        canvas.width = img.width;
+        canvas.height = img.height;
+        redraw();
+        if (callback) callback();
+      };
+      img.src = src;
+    }
+
+    // Load Built-in Sample
+    async function loadSampleScore() {
+      showLoading("載入示範樂譜 (tabi.png)...");
+      try {
+        const resp = await fetch('/api/sample');
+        const data = await resp.json();
+        setImage(data.image_url, () => {
+          symbols = data.symbols || [];
+          downloadUrl = data.musicxml || null;
+          if (downloadUrl) {
+            document.getElementById('btnDownloadXml').style.display = 'inline-flex';
+          }
+          selectedSymbol = symbols[0] || null;
+          updateSidebar();
+          redraw();
+          hideLoading();
+        });
+      } catch (e) {
+        console.error(e);
+        hideLoading();
+      }
+    }
+
+    // Handle User File Upload
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      currentImageFile = file;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImage(event.target.result, () => {
+          symbols = [];
+          selectedSymbol = null;
+          updateSidebar();
+          redraw();
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Run HOMR Recognition
+    async function runRecognition() {
+      if (!currentImage) {
+        alert("請先上傳樂譜或載入示範譜！");
+        return;
+      }
+      showLoading("正在透過 HOMR 進行神經網路辨識與五線譜音符外框提取...");
+      try {
+        let formData = new FormData();
+        if (currentImageFile) {
+          formData.append('file', currentImageFile);
+        } else {
+          // fetch canvas image as blob
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+          formData.append('file', blob, 'score.png');
+        }
+
+        const resp = await fetch('/recognize', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await resp.json();
+        if (resp.ok) {
+          symbols = result.symbols || [];
+          downloadUrl = result.musicxml;
+          if (downloadUrl) {
+            document.getElementById('btnDownloadXml').style.display = 'inline-flex';
+          }
+          selectedSymbol = symbols[0] || null;
+          updateSidebar();
+          redraw();
+        } else {
+          alert("辨識失敗: " + (result.error || "未知錯誤"));
+        }
+      } catch (err) {
+        alert("連線或處理發生錯誤: " + err);
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function downloadXml() {
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank');
+      }
+    }
+
+    // Canvas Redraw
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (currentImage) {
+        ctx.drawImage(currentImage, 0, 0);
+      }
+
+      // Draw all symbols
+      symbols.forEach((sym) => {
+        const isSelected = selectedSymbol && selectedSymbol.id === sym.id;
+
+        // Bounding Box Fill & Stroke
+        ctx.lineWidth = isSelected ? 2.5 : 1.5;
+        if (isSelected) {
+          ctx.strokeStyle = '#facc15';
+          ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
+        } else if (sym.type === 'rest') {
+          ctx.strokeStyle = '#f97316';
+          ctx.fillStyle = 'rgba(249, 115, 22, 0.15)';
+        } else if (sym.type === 'chord') {
+          ctx.strokeStyle = '#a855f7';
+          ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+        } else {
+          ctx.strokeStyle = '#06b6d4';
+          ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+        }
+
+        ctx.fillRect(sym.x, sym.y, sym.width, sym.height);
+        ctx.strokeRect(sym.x, sym.y, sym.width, sym.height);
+
+        // Pitch / Label Text
+        const label = sym.pitch || sym.type;
+        if (label) {
+          ctx.font = 'bold 11px sans-serif';
+          ctx.fillStyle = isSelected ? '#facc15' : '#ffffff';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 4;
+          ctx.fillText(label, sym.x, sym.y - 4);
+          ctx.shadowBlur = 0;
+        }
+
+        // Selection Handles
+        if (isSelected) {
+          ctx.fillStyle = '#facc15';
+          const handleSize = 5;
+          ctx.fillRect(sym.x + sym.width - handleSize, sym.y + sym.height - handleSize, handleSize, handleSize);
+        }
+      });
+    }
+
+    // Zoom Controls
+    function changeZoom(delta) {
+      zoomLevel = Math.max(0.3, Math.min(3.0, zoomLevel + delta));
+      applyZoom();
+    }
+
+    function resetZoom() {
+      zoomLevel = 1.0;
+      applyZoom();
+    }
+
+    function applyZoom() {
+      canvas.style.transform = `scale(${zoomLevel})`;
+    }
+
+    // Mouse & Touch Interactions on Canvas
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY
+      };
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (currentTool === 'pan') {
+        isPanning = true;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        scrollStartX = wrapper.scrollLeft;
+        scrollStartY = wrapper.scrollTop;
+        return;
+      }
+
+      const { x, y } = getCanvasCoords(e);
+
+      if (currentTool === 'add') {
+        const newSym = {
+          id: `sym-${Date.now().toString().slice(-4)}`,
+          type: 'note',
+          pitch: 'C4',
+          duration: 'quarter',
+          x: Math.round(x - 9),
+          y: Math.round(y - 8),
+          width: 18,
+          height: 16,
+          confidence: 1.0
+        };
+        symbols.push(newSym);
+        selectedSymbol = newSym;
+        updateSidebar();
+        redraw();
+        return;
+      }
+
+      // Check hit on existing symbols (reverse to pick topmost)
+      let hit = null;
+      let mode = 'move';
+      for (let i = symbols.length - 1; i >= 0; i--) {
+        const s = symbols[i];
+        if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
+          hit = s;
+          // check if near bottom-right corner for resize
+          if (x >= s.x + s.width - 8 && y >= s.y + s.height - 8) {
+            mode = 'resize-se';
+          }
+          break;
+        }
+      }
+
+      selectedSymbol = hit;
+      if (hit) {
+        isDragging = true;
+        dragMode = mode;
+        dragOffsetX = x - hit.x;
+        dragOffsetY = y - hit.y;
+      }
+      updateSidebar();
+      redraw();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        const dx = e.clientX - panStartX;
+        const dy = e.clientY - panStartY;
+        wrapper.scrollLeft = scrollStartX - dx;
+        wrapper.scrollTop = scrollStartY - dy;
+        return;
+      }
+
+      if (isDragging && selectedSymbol) {
+        const { x, y } = getCanvasCoords(e);
+        if (dragMode === 'move') {
+          selectedSymbol.x = Math.round(x - dragOffsetX);
+          selectedSymbol.y = Math.round(y - dragOffsetY);
+        } else if (dragMode === 'resize-se') {
+          selectedSymbol.width = Math.max(6, Math.round(x - selectedSymbol.x));
+          selectedSymbol.height = Math.max(6, Math.round(y - selectedSymbol.y));
+        }
+        updateFormCoords();
+        redraw();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isPanning = false;
+      isDragging = false;
+    });
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', (e) => {
+      if (!selectedSymbol) return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        deleteSelectedSymbol();
+      } else if (e.key === 'ArrowLeft') {
+        selectedSymbol.x -= e.shiftKey ? 5 : 1;
+        updateFormCoords(); redraw();
+      } else if (e.key === 'ArrowRight') {
+        selectedSymbol.x += e.shiftKey ? 5 : 1;
+        updateFormCoords(); redraw();
+      } else if (e.key === 'ArrowUp') {
+        selectedSymbol.y -= e.shiftKey ? 5 : 1;
+        updateFormCoords(); redraw();
+      } else if (e.key === 'ArrowDown') {
+        selectedSymbol.y += e.shiftKey ? 5 : 1;
+        updateFormCoords(); redraw();
+      }
+    });
+
+    // Sidebar & Inspector Functions
+    function updateSidebar() {
+      document.getElementById('symbolCountBadge').innerText = `${symbols.length} 個符號`;
+
+      if (selectedSymbol) {
+        document.getElementById('selectedIdText').innerText = selectedSymbol.id;
+        document.getElementById('pitchInput').value = selectedSymbol.pitch || '';
+        document.getElementById('durationSelect').value = selectedSymbol.duration || 'quarter';
+        document.getElementById('typeSelect').value = selectedSymbol.type || 'note';
+        updateFormCoords();
+        parsePitchToControls(selectedSymbol.pitch);
+      } else {
+        document.getElementById('selectedIdText').innerText = "未選取";
+        document.getElementById('pitchInput').value = '';
+        document.getElementById('coordX').value = '';
+        document.getElementById('coordY').value = '';
+        document.getElementById('coordW').value = '';
+        document.getElementById('coordH').value = '';
+      }
+
+      renderSymbolList();
+    }
+
+    function updateFormCoords() {
+      if (!selectedSymbol) return;
+      document.getElementById('coordX').value = selectedSymbol.x;
+      document.getElementById('coordY').value = selectedSymbol.y;
+      document.getElementById('coordW').value = selectedSymbol.width;
+      document.getElementById('coordH').value = selectedSymbol.height;
+    }
+
+    function onCoordChange(field, val) {
+      if (!selectedSymbol) return;
+      selectedSymbol[field] = parseInt(val) || 0;
+      redraw();
+    }
+
+    function onFieldChange(field, val) {
+      if (!selectedSymbol) return;
+      selectedSymbol[field] = val;
+      redraw();
+      renderSymbolList();
+    }
+
+    function parsePitchToControls(pStr) {
+      if (!pStr) return;
+      const match = pStr.match(/^([A-G])([#b]?)([0-9]?)$/);
+      if (match) {
+        const [_, step, acc, oct] = match;
+        if (oct) document.getElementById('octaveSelect').value = oct;
+        setAccidental(acc, false);
+      }
+    }
+
+    let currentBasePitch = 'C';
+    let currentAccidental = '';
+
+    function setBasePitch(p) {
+      currentBasePitch = p;
+      updatePitchFromComponents();
+    }
+
+    function setAccidental(acc, triggerUpdate = true) {
+      currentAccidental = acc;
+      document.getElementById('btnAccNone').className = acc === '' ? 'active' : '';
+      document.getElementById('btnAccSharp').className = acc === '#' ? 'active' : '';
+      document.getElementById('btnAccFlat').className = acc === 'b' ? 'active' : '';
+      if (triggerUpdate) updatePitchFromComponents();
+    }
+
+    function updatePitchFromComponents() {
+      if (!selectedSymbol) return;
+      const oct = document.getElementById('octaveSelect').value;
+      const p = `${currentBasePitch}${currentAccidental}${oct}`;
+      selectedSymbol.pitch = p;
+      document.getElementById('pitchInput').value = p;
+      redraw();
+      renderSymbolList();
+    }
+
+    function onPitchManualChange() {
+      if (!selectedSymbol) return;
+      selectedSymbol.pitch = document.getElementById('pitchInput').value.trim();
+      redraw();
+      renderSymbolList();
+    }
+
+    function deleteSelectedSymbol() {
+      if (!selectedSymbol) return;
+      symbols = symbols.filter(s => s.id !== selectedSymbol.id);
+      selectedSymbol = symbols[0] || null;
+      updateSidebar();
+      redraw();
+    }
+
+    function renderSymbolList() {
+      const list = document.getElementById('symbolListContainer');
+      list.innerHTML = '';
+      symbols.forEach((sym) => {
+        const div = document.createElement('div');
+        div.className = 'symbol-item' + (selectedSymbol && selectedSymbol.id === sym.id ? ' selected' : '');
+        div.innerHTML = `<span><strong>${sym.id}</strong>: ${sym.pitch || sym.type}</span><span style="color:var(--text-muted)">(${sym.x}, ${sym.y})</span>`;
+        div.onclick = () => {
+          selectedSymbol = sym;
+          updateSidebar();
+          redraw();
+          // scroll to center if needed
+        };
+        list.appendChild(div);
+      });
+    }
+
+    // Export Corrected MusicXML
+    async function exportCorrectedXml() {
+      showLoading("正在將校對後音符重新編譯為標準 MusicXML...");
+      try {
+        const resp = await fetch('/api/export-musicxml', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: symbols })
+        });
+        const res = await resp.json();
+        if (resp.ok && res.download_url) {
+          window.open(res.download_url, '_blank');
+        } else {
+          alert("匯出失敗: " + (res.error || "未知錯誤"));
+        }
+      } catch (err) {
+        alert("匯出錯誤: " + err);
+      } finally {
+        hideLoading();
+      }
+    }
+  </script>
+</body>
+</html>
