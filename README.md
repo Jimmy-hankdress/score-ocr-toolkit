@@ -4,7 +4,7 @@
 
 ## 目前狀態
 
-MVP 開發中。目前已提供圖片上傳與 OpenCV 影像預處理；OMR 辨識、人工校對與 MusicXML 匯出將逐步加入。
+MVP 開發中。目前已提供圖片上傳、OpenCV 影像預處理與 HOMR OMR 外接轉 MusicXML 端點；人工校對與視覺化介面將逐步加入。
 
 ## 安裝
 
@@ -16,6 +16,16 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app:app --reload
 ```
+
+## Optional HOMR backend
+
+HOMR is AGPL-3.0 licensed and is not bundled with this project.
+
+```bash
+pip install "homr[cpu]"
+```
+
+HOMR requires Python 3.11 or 3.12.
 
 開啟：
 
@@ -32,17 +42,18 @@ http://127.0.0.1:8000/docs
 上傳樂譜圖片，回傳原始檔與二值化預處理結果路徑。
 
 ### `POST /recognize`
+上傳樂譜圖片，執行影像預處理並透過 OMR 後端辨識，產生 MusicXML 並回傳下載連結與符號清單。
 
-上傳樂譜圖片，執行影像預處理並回傳 OMR 辨識結果。
-
-目前使用 `PlaceholderRecognizer` 作為管線驗證；實際 OMR 引擎將於後續版本接入。
+### `GET /download/{filename}`
+下載產生的 MusicXML 檔案。
 
 ## Roadmap
 
 - [x] 專案初始化
 - [x] 圖片上傳
 - [x] OpenCV 預處理
-- [ ] OMR 辨識整合
+- [x] HOMR OMR backend adapter
+- [ ] MusicXML parsing and editable correction UI
 - [ ] 辨識結果人工校對
 - [ ] MusicXML 匯出
 - [ ] 批次處理
