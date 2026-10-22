@@ -1,0 +1,37 @@
+from dataclasses import dataclass, asdict
+from typing import List
+
+
+@dataclass
+class Symbol:
+    type: str
+    pitch: str | None
+    duration: str | None
+    x: int
+    y: int
+    confidence: float
+
+
+class BaseRecognizer:
+    def recognize(self, image_path: str) -> List[Symbol]:
+        raise NotImplementedError
+
+
+class PlaceholderRecognizer(BaseRecognizer):
+    """第一階段使用：確認管線可用，之後替換為實際 OMR 引擎。"""
+
+    def recognize(self, image_path: str) -> List[Symbol]:
+        return [
+            Symbol(
+                type="note",
+                pitch=None,
+                duration=None,
+                x=0,
+                y=0,
+                confidence=0.0,
+            )
+        ]
+
+
+def symbols_to_dict(symbols: List[Symbol]) -> list[dict]:
+    return [asdict(symbol) for symbol in symbols]
