@@ -95,16 +95,30 @@ async def recognize(file: UploadFile = File(...)):
     temp_path = PROCESSED_DIR / f"recognize_{file.filename}"
     cv2.imwrite(str(temp_path), binary)
 
-    symbols = recognizer.recognize(str(temp_path))
+    try:
+        symbols = recognizer.recognize(str(temp_path))
+    except Exception as e:
+        return JSONResponse(
+            {
+                "filename": file.filename,
+                "error": str(e),
+                "symbol_count": 0,
+                "symbols": [],
+                "musicxml": None,
+            },
+            status_code=422,
+        )
+
     xml_name = f"recognize_{Path(file.filename).stem}.musicxml"
     xml_path = temp_path.with_suffix(".musicxml")
     target_xml = PROCESSED_DIR / xml_name
 
     has_xml = False
     if xml_path.exists():
-        if target_xml.exists():
-            target_xml.unlink()
-        xml_path.rename(target_xml)
+        if xml_path.resolve() != target_xml.resolve():
+            if target_xml.exists():
+                target_xml.unlink()
+            xml_path.rename(target_xml)
         has_xml = True
     elif target_xml.exists():
         has_xml = True
