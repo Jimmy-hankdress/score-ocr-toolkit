@@ -1,3 +1,4 @@
+from src.ocr.recognizer import PlaceholderRecognizer, symbols_to_dict
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,6 +24,26 @@ def preprocess_image(contents: bytes) -> np.ndarray:
         blurred, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )
     return binary
+
+
+recognizer = PlaceholderRecognizer()
+
+
+@app.post("/recognize")
+async def recognize(file: UploadFile = File(...)):
+    contents = await file.read()
+    binary = preprocess_image(contents)
+
+    temp_path = PROCESSED_DIR / f"recognize_{file.filename}"
+    cv2.imwrite(str(temp_path), binary)
+
+    symbols = recognizer.recognize(str(temp_path))
+
+    return {
+        "filename": file.filename,
+        "symbol_count": len(symbols),
+        "symbols": symbols_to_dict(symbols),
+    }
 
 
 @app.get("/")
