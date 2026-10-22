@@ -10,6 +10,9 @@ class Symbol:
     x: int
     y: int
     confidence: float
+    width: int = 18
+    height: int = 16
+    id: str = ""
 
 
 class BaseRecognizer:
@@ -23,11 +26,14 @@ class PlaceholderRecognizer(BaseRecognizer):
     def recognize(self, image_path: str) -> List[Symbol]:
         return [
             Symbol(
+                id="sym-0",
                 type="note",
                 pitch=None,
                 duration=None,
                 x=0,
                 y=0,
+                width=18,
+                height=16,
                 confidence=0.0,
             )
         ]

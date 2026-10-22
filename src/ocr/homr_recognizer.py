@@ -4,10 +4,11 @@ import sys
 from pathlib import Path
 from typing import List
 from src.ocr.recognizer import BaseRecognizer, Symbol
+from src.ocr.note_extractor import extract_score_symbols
 
 
 class HomrRecognizer(BaseRecognizer):
-    """透過外部 homr CLI 產生 MusicXML。
+    """透過外部 homr CLI 產生 MusicXML 並提取音符外框 (Bounding Box)。
     homr 採 AGPL-3.0，請由使用者另行安裝：
     pip install "homr[cpu]"
     """
@@ -55,15 +56,22 @@ class HomrRecognizer(BaseRecognizer):
                 f"HOMR did not create expected MusicXML file: {output_xml}"
             )
 
-        # HOMR 已輸出 MusicXML；此處先回傳管線狀態。
-        # 後續再解析 MusicXML，轉為可校對的 Symbol 清單。
-        return [
-            Symbol(
-                type="musicxml_document",
-                pitch=None,
-                duration=None,
-                x=0,
-                y=0,
-                confidence=1.0,
-            )
-        ]
+        # 從辨識圖與產生的 MusicXML 中提取音符座標外框與音高資訊
+        symbols = extract_score_symbols(str(image), str(output_xml))
+        if not symbols:
+            # 回退佔位符號
+            return [
+                Symbol(
+                    id="doc-1",
+                    type="musicxml_document",
+                    pitch=None,
+                    duration=None,
+                    x=0,
+                    y=0,
+                    width=30,
+                    height=30,
+                    confidence=1.0,
+                )
+            ]
+
+        return symbols
