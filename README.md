@@ -31,6 +31,12 @@ http://127.0.0.1:8000/docs
 ### `POST /upload`
 上傳樂譜圖片，回傳原始檔與二值化預處理結果路徑。
 
+### `POST /recognize`
+
+上傳樂譜圖片，執行影像預處理並回傳 OMR 辨識結果。
+
+目前使用 `PlaceholderRecognizer` 作為管線驗證；實際 OMR 引擎將於後續版本接入。
+
 ## Roadmap
 
 - [x] 專案初始化

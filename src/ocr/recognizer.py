@@ -1,12 +1,12 @@
 from dataclasses import dataclass, asdict
-from typing import List
+from typing import List, Optional
 
 
 @dataclass
 class Symbol:
     type: str
-    pitch: str | None
-    duration: str | None
+    pitch: Optional[str]
+    duration: Optional[str]
     x: int
     y: int
     confidence: float
@@ -18,7 +18,7 @@ class BaseRecognizer:
 
 
 class PlaceholderRecognizer(BaseRecognizer):
-    """第一階段使用：確認管線可用，之後替換為實際 OMR 引擎。"""
+    """第一階段佔位實作；之後替換為實際 OMR 引擎。"""
 
     def recognize(self, image_path: str) -> List[Symbol]:
         return [
