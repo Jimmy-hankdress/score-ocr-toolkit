@@ -62,7 +62,15 @@ def symbols_to_musicxml(symbols: List[Dict[str, Any]], title: str = "ScoreOCR Co
         "32nd": 0.5
     }
 
-    for sym in symbols:
+    for item in symbols:
+        # 兼容 dict 或 Symbol dataclass 物件
+        if hasattr(item, "__dataclass_fields__"):
+            sym = {k: getattr(item, k) for k in item.__dataclass_fields__}
+        elif isinstance(item, dict):
+            sym = item
+        else:
+            sym = getattr(item, "__dict__", {})
+
         dur_name = sym.get("duration", "quarter")
         dur_val = duration_map.get(dur_name, 4)
 

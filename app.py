@@ -11,10 +11,19 @@ import re
 import uuid
 from typing import List, Dict, Any
 
-from src.ocr.recognizer import symbols_to_dict
+from src.ocr.recognizer import Symbol, symbols_to_dict
 from src.ocr.homr_recognizer import HomrRecognizer
 from src.ocr.note_extractor import extract_score_symbols
 from src.ocr.musicxml_builder import symbols_to_musicxml
+from src.ocr.format_importer import (
+    import_file_to_image_and_symbols,
+    SUPPORTED_EXTENSIONS,
+)
+from src.ocr.jianpu_converter import (
+    pitch_to_jianpu,
+    symbols_to_jianpu_text,
+    symbol_to_jianpu_notation,
+)
 
 app = FastAPI(title="ScoreOCR Toolkit")
 
@@ -95,12 +104,19 @@ def get_sample_score():
     xml_path_str = str(sample_xml) if sample_xml.exists() else None
     symbols = extract_score_symbols(str(sample_img), xml_path_str)
 
+    jianpu_text = symbols_to_jianpu_text(symbols, title="Tabi Sample Score")
+    jianpu_name = "sample_tabi_jianpu.txt"
+    (PROCESSED_DIR / jianpu_name).write_text(jianpu_text, encoding="utf-8")
+
     return {
         "filename": "tabi.png",
         "image_url": f"/files/processed/{dest_img.name}",
         "symbol_count": len(symbols),
         "symbols": symbols_to_dict(symbols),
         "musicxml": f"/download/{sample_xml.name}" if sample_xml.exists() else None,
+        "jianpu_file": f"/download/{jianpu_name}",
+        "jianpu_url": f"/download/{jianpu_name}",
+        "jianpu_text": jianpu_text,
     }
 
 
@@ -126,16 +142,29 @@ async def upload(file: UploadFile = File(...)):
 
 
 @app.get("/download/{filename}")
-def download_musicxml(filename: str):
-    xml_path = PROCESSED_DIR / filename
-    if not xml_path.exists():
+def download_file(filename: str):
+    file_path = PROCESSED_DIR / filename
+    if not file_path.exists():
         return JSONResponse(
-            {"error": "MusicXML file not found"},
+            {"error": "File not found"},
             status_code=404,
         )
+
+    ext = file_path.suffix.lower()
+    media_types = {
+        ".musicxml": "application/vnd.recordare.musicxml+xml",
+        ".xml": "application/xml",
+        ".txt": "text/plain; charset=utf-8",
+        ".jianpu": "text/plain; charset=utf-8",
+        ".json": "application/json",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
     return FileResponse(
-        xml_path,
-        media_type="application/vnd.recordare.musicxml+xml",
+        file_path,
+        media_type=media_type,
         filename=filename,
     )
 
@@ -143,27 +172,63 @@ def download_musicxml(filename: str):
 @app.post("/recognize")
 async def recognize(file: UploadFile = File(...)):
     contents = await file.read()
-    binary = preprocess_image(contents)
 
     # 安全路徑命名：保留原本名稱作為標題，同時生成 ASCII/UUID 安全磁碟檔名
-    ext = Path(file.filename).suffix.lower() or ".png"
     safe_token = uuid.uuid4().hex[:8]
     safe_base = re.sub(r"[^a-zA-Z0-9_\-]", "_", Path(file.filename).stem) or "score"
-    raw_filename = f"raw_{safe_token}_{safe_base}{ext}"
-    proc_filename = f"proc_{safe_token}_{safe_base}.png"
 
+    # 多格式相容解析 (支援 PDF, DOCX, TXT, JSON, BMP, WEBP, TIFF, PNG, JPG)
+    try:
+        pil_image, pre_symbols, fmt_type = import_file_to_image_and_symbols(
+            contents, file.filename
+        )
+    except Exception as parse_err:
+        return JSONResponse(
+            {
+                "success": False,
+                "filename": file.filename,
+                "error_type": "FORMAT_PARSE_ERROR",
+                "error": f"解析檔案失敗: {str(parse_err)}",
+                "suggestion": f"目前支援格式包含: {', '.join(sorted(SUPPORTED_EXTENSIONS))}。請確認檔案內容或格式是否正確。",
+                "symbol_count": 0,
+                "symbols": [],
+                "musicxml": None,
+                "jianpu_file": None,
+                "jianpu_text": "",
+            },
+            status_code=400,
+        )
+
+    # 統一將渲染或提取出的樂譜影像存為標準 PNG 供畫布與 OMR 讀取
+    raw_filename = f"raw_{safe_token}_{safe_base}.png"
     raw_path = PROCESSED_DIR / raw_filename
-    proc_path = PROCESSED_DIR / proc_filename
+    pil_image.save(raw_path, format="PNG")
 
-    # 保存原始未二值化檔案 (HOMR 深度學習模型在原始自然照片/掃描圖上表現最佳)
-    raw_path.write_bytes(contents)
+    # 若為 TXT、JSON 或 Word 文字簡譜，已在 importer 中成功提取音符符號
+    if pre_symbols:
+        xml_name = f"recognize_{safe_base}_{safe_token}.musicxml"
+        target_xml = PROCESSED_DIR / xml_name
+        xml_content = symbols_to_musicxml(pre_symbols, title=Path(file.filename).stem)
+        target_xml.write_text(xml_content, encoding="utf-8")
 
-    # 安全寫入二值化圖 (避免 Windows 非 ASCII 檔名在 OpenCV 中寫入失敗)
-    success, encoded_img = cv2.imencode(".png", binary)
-    if success:
-        encoded_img.tofile(str(proc_path))
+        jianpu_text = symbols_to_jianpu_text(pre_symbols, title=Path(file.filename).stem)
+        jianpu_name = f"jianpu_{safe_base}_{safe_token}.txt"
+        (PROCESSED_DIR / jianpu_name).write_text(jianpu_text, encoding="utf-8")
 
-    # 執行辨識
+        return {
+            "success": True,
+            "format_type": fmt_type,
+            "filename": file.filename,
+            "image_url": f"/files/processed/{raw_filename}",
+            "symbol_count": len(pre_symbols),
+            "symbols": symbols_to_dict(pre_symbols),
+            "musicxml": f"/download/{xml_name}",
+            "jianpu_file": f"/download/{jianpu_name}",
+            "jianpu_url": f"/download/{jianpu_name}",
+            "jianpu_text": jianpu_text,
+        }
+
+    # 否則進入神經網路 OMR 引擎 (支援標準五線譜影像：PDF 渲染圖、Word 樂譜插圖、BMP/PNG/JPG 等)
     try:
         symbols = recognizer.recognize(str(raw_path))
     except Exception as e:
@@ -174,7 +239,9 @@ async def recognize(file: UploadFile = File(...)):
             suggestion = (
                 "目前 HOMR 辨識核心專為「標準五線譜 (Western Staff Notation)」設計；"
                 "若您上傳的是「簡譜 / 數字譜 (1 2 3...)」、「吉他六線譜 (TAB)」或「純歌詞和弦譜」，AI 尚無法自動辨識。\n\n"
-                "建議：請改為上傳標準五線譜圖片 (如鋼琴、管弦樂譜)；或者您仍可利用畫布的「新增音符」工具直接手動標註！"
+                "建議：\n"
+                "1. 若為簡譜文本，可直接儲存為 .txt 或 .docx 文字檔上傳，系統將自動解析為簡譜！\n"
+                "2. 若為樂譜圖片，您可利用畫布的「新增音符」工具直接手動標註並即時轉為簡譜！"
             )
         elif "No noteheads found" in err_msg:
             error_type = "NO_NOTEHEADS_FOUND"
@@ -187,11 +254,12 @@ async def recognize(file: UploadFile = File(...)):
         else:
             error_type = "OMR_PROCESSING_ERROR"
             friendly_error = f"OMR 辨識過程發生異常: {err_msg[:200]}"
-            suggestion = "請確認圖片為清晰的樂譜掃描圖或照片。"
+            suggestion = "請確認檔案為清晰的樂譜掃描圖、PDF 或照片。"
 
         return JSONResponse(
             {
                 "success": False,
+                "format_type": fmt_type,
                 "filename": file.filename,
                 "image_url": f"/files/processed/{raw_filename}",
                 "error_type": error_type,
@@ -201,6 +269,8 @@ async def recognize(file: UploadFile = File(...)):
                 "symbol_count": 0,
                 "symbols": [],
                 "musicxml": None,
+                "jianpu_file": None,
+                "jianpu_text": "",
             },
             status_code=200,
         )
@@ -219,13 +289,99 @@ async def recognize(file: UploadFile = File(...)):
     elif target_xml.exists():
         has_xml = True
 
+    # 同時產生簡譜音符文字檔 (.txt)
+    jianpu_text = symbols_to_jianpu_text(symbols, title=Path(file.filename).stem)
+    jianpu_name = f"jianpu_{safe_base}_{safe_token}.txt"
+    (PROCESSED_DIR / jianpu_name).write_text(jianpu_text, encoding="utf-8")
+
     return {
         "success": True,
+        "format_type": fmt_type,
         "filename": file.filename,
         "image_url": f"/files/processed/{raw_filename}",
         "symbol_count": len(symbols),
         "symbols": symbols_to_dict(symbols),
         "musicxml": f"/download/{xml_name}" if has_xml else None,
+        "jianpu_file": f"/download/{jianpu_name}",
+        "jianpu_url": f"/download/{jianpu_name}",
+        "jianpu_text": jianpu_text,
+    }
+
+
+@app.post("/api/export-jianpu")
+async def export_jianpu(payload: Dict[str, Any] = Body(...)):
+    """將畫布校對修改後的音符列表編譯為簡譜文字格式 (.txt) 供下載與複製。"""
+    raw_symbols = payload.get("symbols", [])
+    if not raw_symbols:
+        return JSONResponse({"error": "No symbols provided"}, status_code=400)
+
+    title = payload.get("title", "ScoreOCR Jianpu Score")
+    key = payload.get("key", "C")
+    meter = payload.get("meter", "4/4")
+
+    symbols = [
+        Symbol(
+            id=s.get("id", f"sym-{i+1}"),
+            type=s.get("type", "note"),
+            pitch=s.get("pitch"),
+            duration=s.get("duration", "quarter"),
+            x=int(s.get("x", 0)),
+            y=int(s.get("y", 0)),
+            width=int(s.get("width", 20)),
+            height=int(s.get("height", 18)),
+            confidence=float(s.get("confidence", 1.0)),
+        )
+        for i, s in enumerate(raw_symbols)
+    ]
+
+    try:
+        jianpu_text = symbols_to_jianpu_text(symbols, title=title, key=key, meter=meter)
+        output_filename = f"jianpu_{uuid.uuid4().hex[:8]}.txt"
+        output_file = PROCESSED_DIR / output_filename
+        output_file.write_text(jianpu_text, encoding="utf-8")
+
+        return {
+            "status": "ok",
+            "message": "Jianpu score generated successfully",
+            "download_url": f"/download/{output_file.name}",
+            "jianpu_text": jianpu_text,
+        }
+    except Exception as e:
+        return JSONResponse({"error": f"Failed to export Jianpu: {str(e)}"}, status_code=500)
+
+
+@app.post("/api/convert-to-jianpu")
+async def convert_to_jianpu(payload: Dict[str, Any] = Body(...)):
+    """即時轉換 Symbol 清單為簡譜純文字與個別音符之簡譜標籤 (供畫布即時渲染與面板預覽)"""
+    raw_symbols = payload.get("symbols", [])
+    key = payload.get("key", "C")
+    meter = payload.get("meter", "4/4")
+
+    symbols = [
+        Symbol(
+            id=s.get("id", f"sym-{i+1}"),
+            type=s.get("type", "note"),
+            pitch=s.get("pitch"),
+            duration=s.get("duration", "quarter"),
+            x=int(s.get("x", 0)),
+            y=int(s.get("y", 0)),
+            width=int(s.get("width", 20)),
+            height=int(s.get("height", 18)),
+            confidence=float(s.get("confidence", 1.0)),
+        )
+        for i, s in enumerate(raw_symbols)
+    ]
+
+    tag_map = {
+        s.id: pitch_to_jianpu(s.pitch, key=key) if s.pitch else "0"
+        for s in symbols
+    }
+    full_text = symbols_to_jianpu_text(symbols, title="Score", key=key, meter=meter)
+
+    return {
+        "status": "ok",
+        "tag_map": tag_map,
+        "jianpu_text": full_text,
     }
 
 

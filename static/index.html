@@ -387,14 +387,15 @@
   <header>
     <div class="brand">
       <h1>ScoreOCR Toolkit</h1>
-      <span class="badge">畫布校對 MVP</span>
+      <span class="badge">全格式・簡譜・五線譜校對</span>
     </div>
     <div class="actions">
-      <input type="file" id="fileInput" accept="image/*" style="display: none;">
-      <button onclick="document.getElementById('fileInput').click()">📁 上傳樂譜圖片</button>
+      <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf,.docx,.txt,.json,image/*" style="display: none;">
+      <button onclick="document.getElementById('fileInput').click()">📁 上傳樂譜/檔案 (PDF/圖片/Word/TXT/JSON)</button>
       <button onclick="loadSampleScore()">🎼 載入示範樂譜</button>
-      <button class="primary" id="btnRecognize" onclick="runRecognition()">⚡ 辨識與產生音符框</button>
+      <button class="primary" id="btnRecognize" onclick="runRecognition()">⚡ 辨識與轉換</button>
       <button class="success" id="btnDownloadXml" onclick="downloadXml()" style="display: none;">📥 下載 MusicXML</button>
+      <button class="success" id="btnDownloadJianpu" onclick="downloadJianpuFile()" style="display: none; background-color: #0d9488; border-color: #14b8a6;">🎼 下載簡譜 (.txt)</button>
     </div>
   </header>
 
@@ -405,6 +406,8 @@
         <button id="toolSelect" class="active" onclick="setTool('select')">👆 選取</button>
         <button id="toolAdd" onclick="setTool('add')">➕ 新增音符</button>
         <button id="toolPan" onclick="setTool('pan')">✋ 拖曳平移</button>
+        <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
+        <button id="btnToggleJianpu" class="active" onclick="toggleJianpuDisplay()">🎼 簡譜標記 (開)</button>
         <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
         <button onclick="changeZoom(0.15)">🔍 放大</button>
         <button onclick="changeZoom(-0.15)">🔎 縮小</button>
@@ -417,7 +420,7 @@
 
       <div id="loadingOverlay">
         <div class="spinner"></div>
-        <p id="loadingText">正在由 HOMR 模型推論並提取五線譜音符框...</p>
+        <p id="loadingText">正在處理檔案並進行樂譜辨識...</p>
       </div>
     </div>
 
@@ -432,7 +435,7 @@
 
         <div id="inspectorForm">
           <div class="form-group">
-            <label>音高 (Pitch)</label>
+            <label>音高 (Pitch) 與對應簡譜</label>
             <div class="pitch-pad">
               <button onclick="setBasePitch('C')">C</button>
               <button onclick="setBasePitch('D')">D</button>
@@ -498,6 +501,44 @@
         </div>
       </div>
 
+      <!-- Jianpu Converter & Live Preview Section -->
+      <div class="section">
+        <div class="section-title">
+          <span>🎼 簡譜即時轉換與預覽</span>
+          <span style="font-size: 0.75rem; color: #34d399;">Numbered Notation</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">調號 (Key 1=)</label>
+            <select id="jianpuKeySelect" onchange="onJianpuConfigChange()">
+              <option value="C" selected>1 = C</option>
+              <option value="G">1 = G</option>
+              <option value="D">1 = D</option>
+              <option value="A">1 = A</option>
+              <option value="F">1 = F</option>
+              <option value="Bb">1 = B♭</option>
+              <option value="Eb">1 = E♭</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">拍號 (Meter)</label>
+            <select id="jianpuMeterSelect" onchange="onJianpuConfigChange()">
+              <option value="4/4" selected>4/4 拍</option>
+              <option value="3/4">3/4 拍</option>
+              <option value="2/4">2/4 拍</option>
+              <option value="6/8">6/8 拍</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <textarea id="jianpuPreviewText" rows="6" readonly class="form-control" style="font-family: Consolas, monospace; font-size: 0.88rem; line-height: 1.45; color: #a7f3d0; background: #064e3b22; border-color: #059669; white-space: pre-wrap; word-break: break-all; resize: vertical;"></textarea>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="primary" style="flex: 1;" onclick="copyJianpuToClipboard()">📋 複製簡譜</button>
+          <button class="success" style="flex: 1; background-color: #0d9488; border-color: #14b8a6;" onclick="downloadJianpuFile()">💾 下載簡譜</button>
+        </div>
+      </div>
+
       <!-- Symbols Overview List -->
       <div class="section" style="flex: 1; display: flex; flex-direction: column;">
         <div class="section-title">
@@ -511,9 +552,12 @@
       </div>
 
       <!-- Export Actions -->
-      <div class="section">
-        <button class="success" style="width: 100%; justify-content: center; padding: 10px 0;" onclick="exportCorrectedXml()">
+      <div class="section" style="display: flex; flex-direction: column; gap: 8px;">
+        <button class="success" style="width: 100%; justify-content: center; padding: 9px 0;" onclick="exportCorrectedXml()">
           💾 儲存並匯出校對後 MusicXML
+        </button>
+        <button class="success" style="width: 100%; justify-content: center; padding: 9px 0; background-color: #0d9488; border-color: #14b8a6;" onclick="downloadJianpuFile()">
+          🎼 儲存並匯出校對後簡譜 (.txt)
         </button>
       </div>
     </div>
@@ -531,6 +575,8 @@
     let currentTool = 'select'; // 'select', 'add', 'pan'
     let zoomLevel = 1.0;
     let downloadUrl = null;
+    let jianpuDownloadUrl = null;
+    let showJianpuBadges = true;
 
     // Pan state
     let isPanning = false;
@@ -549,7 +595,9 @@
 
     function setTool(tool) {
       currentTool = tool;
-      document.querySelectorAll('.canvas-toolbar button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.canvas-toolbar button').forEach(b => {
+        if (b.id !== 'btnToggleJianpu') b.classList.remove('active');
+      });
       if (tool === 'select') document.getElementById('toolSelect').classList.add('active');
       if (tool === 'add') document.getElementById('toolAdd').classList.add('active');
       if (tool === 'pan') document.getElementById('toolPan').classList.add('active');
@@ -557,6 +605,19 @@
       wrapper.className = 'canvas-wrapper';
       if (tool === 'pan') wrapper.classList.add('pan-mode');
       if (tool === 'add') wrapper.classList.add('add-mode');
+    }
+
+    function toggleJianpuDisplay() {
+      showJianpuBadges = !showJianpuBadges;
+      const btn = document.getElementById('btnToggleJianpu');
+      if (showJianpuBadges) {
+        btn.classList.add('active');
+        btn.innerText = '🎼 簡譜標記 (開)';
+      } else {
+        btn.classList.remove('active');
+        btn.innerText = '🎼 簡譜標記 (關)';
+      }
+      redraw();
     }
 
     function showLoading(msg) {
@@ -595,6 +656,7 @@
           }
           selectedSymbol = symbols[0] || null;
           updateSidebar();
+          refreshJianpuPreview();
           redraw();
           hideLoading();
         });
@@ -604,30 +666,39 @@
       }
     }
 
-    // Handle User File Upload
+    // Handle User File Upload (Support PDF, DOCX, TXT, JSON, BMP, PNG, JPG, etc.)
     document.getElementById('fileInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       currentImageFile = file;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImage(event.target.result, () => {
-          symbols = [];
-          selectedSymbol = null;
-          updateSidebar();
-          redraw();
-        });
-      };
-      reader.readAsDataURL(file);
+
+      const filename = file.name.toLowerCase();
+      const isDirectImage = filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.bmp') || filename.endsWith('.webp') || filename.endsWith('.tiff');
+
+      if (isDirectImage) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setImage(event.target.result, () => {
+            symbols = [];
+            selectedSymbol = null;
+            updateSidebar();
+            redraw();
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Document formats (PDF, DOCX, TXT, JSON) -> Trigger server-side recognition & rendering
+        runRecognition();
+      }
     });
 
-    // Run HOMR Recognition
+    // Run OMR Recognition
     async function runRecognition() {
-      if (!currentImage) {
-        alert("請先上傳樂譜或載入示範譜！");
+      if (!currentImage && !currentImageFile) {
+        alert("請先上傳樂譜檔案或載入示範譜！");
         return;
       }
-      showLoading("正在透過 HOMR 進行神經網路辨識與五線譜音符外框提取...");
+      showLoading("正在解析檔案、辨識樂譜並轉換簡譜與五線譜...");
       try {
         let formData = new FormData();
         if (currentImageFile) {
@@ -645,13 +716,33 @@
         const result = await resp.json();
         if (resp.ok && result.success !== false) {
           symbols = result.symbols || [];
-          downloadUrl = result.musicxml;
+          downloadUrl = result.musicxml || null;
+          jianpuDownloadUrl = result.jianpu_url || null;
+
           if (downloadUrl) {
             document.getElementById('btnDownloadXml').style.display = 'inline-flex';
           }
-          selectedSymbol = symbols[0] || null;
-          updateSidebar();
-          redraw();
+          if (jianpuDownloadUrl) {
+            document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
+          }
+          if (result.jianpu_text) {
+            document.getElementById('jianpuPreviewText').value = result.jianpu_text;
+          }
+
+          const applyPostUpdate = () => {
+            selectedSymbol = symbols[0] || null;
+            updateSidebar();
+            if (!result.jianpu_text) {
+              refreshJianpuPreview();
+            }
+            redraw();
+          };
+
+          if (result.image_url) {
+            setImage(result.image_url, applyPostUpdate);
+          } else {
+            applyPostUpdate();
+          }
         } else {
           // 若後端有回傳影像路徑，仍確保影像載入至畫布
           if (result.image_url) {
@@ -667,7 +758,7 @@
             isNoStaff ? "🎼" : "⚠️",
             isNoStaff ? "未偵測到標準五線譜 (No Staffs Found)" : "樂譜辨識提示",
             result.error || "樂譜自動辨識未完成。",
-            result.suggestion || "請確認樂譜是否為標準五線譜格式。",
+            result.suggestion || "請確認樂譜是否為標準五線譜格式，或使用手動標註/簡譜功能。",
             true
           );
         }
@@ -684,12 +775,42 @@
       }
     }
 
+    // Jianpu Helper: Calculate Jianpu Note from Pitch & Key
+    function getPitchToJianpuNumber(pitchStr, key = 'C') {
+      if (!pitchStr) return '';
+      const match = pitchStr.match(/^([A-G])([#b]?)([0-9]?)$/);
+      if (!match) return pitchStr;
+      const [_, step, acc, octStr] = match;
+      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const enharmonics = { 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#' };
+      let normNote = step + (acc || '');
+      if (enharmonics[normNote]) normNote = enharmonics[normNote];
+      const keyNorm = enharmonics[key] || key;
+      const noteIdx = noteNames.indexOf(normNote);
+      const keyIdx = noteNames.indexOf(keyNorm);
+      if (noteIdx === -1 || keyIdx === -1) return normNote;
+
+      const semitoneDiff = (noteIdx - keyIdx + 12) % 12;
+      const scaleMap = { 0: '1', 1: '#1', 2: '2', 3: '#2', 4: '3', 5: '4', 6: '#4', 7: '5', 8: '#5', 9: '6', 10: 'b7', 11: '7' };
+      let jianpuNum = scaleMap[semitoneDiff] || '?';
+
+      const oct = octStr ? parseInt(octStr) : 4;
+      if (oct >= 5) {
+        jianpuNum += '̇'; // high octave dot
+      } else if (oct <= 3) {
+        jianpuNum += '̣'; // low octave dot
+      }
+      return jianpuNum;
+    }
+
     // Canvas Redraw
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (currentImage) {
         ctx.drawImage(currentImage, 0, 0);
       }
+
+      const activeKey = document.getElementById('jianpuKeySelect') ? document.getElementById('jianpuKeySelect').value : 'C';
 
       // Draw all symbols
       symbols.forEach((sym) => {
@@ -723,6 +844,40 @@
           ctx.shadowBlur = 4;
           ctx.fillText(label, sym.x, sym.y - 4);
           ctx.shadowBlur = 0;
+        }
+
+        // Jianpu Badge Overlay
+        if (showJianpuBadges) {
+          let jBadge = '';
+          if (sym.type === 'rest') {
+            jBadge = '0';
+          } else if (sym.pitch) {
+            jBadge = getPitchToJianpuNumber(sym.pitch, activeKey);
+          }
+
+          if (jBadge) {
+            ctx.font = 'bold 11px Consolas, monospace';
+            const textWidth = ctx.measureText(jBadge).width;
+            const badgeW = Math.max(textWidth + 8, 16);
+            const badgeH = 15;
+            const badgeX = sym.x + (sym.width - badgeW) / 2;
+            const badgeY = sym.y + sym.height + 2;
+
+            // Draw badge background
+            ctx.fillStyle = isSelected ? '#854d0e' : '#064e3b';
+            ctx.strokeStyle = isSelected ? '#fde047' : '#34d399';
+            ctx.lineWidth = 1;
+            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+            ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+
+            // Draw badge text
+            ctx.fillStyle = isSelected ? '#fef08a' : '#ecfdf5';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(jBadge, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+          }
         }
 
         // Selection Handles
@@ -787,6 +942,7 @@
         symbols.push(newSym);
         selectedSymbol = newSym;
         updateSidebar();
+        refreshJianpuPreview();
         redraw();
         return;
       }
@@ -798,7 +954,6 @@
         const s = symbols[i];
         if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
           hit = s;
-          // check if near bottom-right corner for resize
           if (x >= s.x + s.width - 8 && y >= s.y + s.height - 8) {
             mode = 'resize-se';
           }
@@ -841,6 +996,9 @@
     });
 
     window.addEventListener('mouseup', () => {
+      if (isDragging) {
+        refreshJianpuPreview();
+      }
       isPanning = false;
       isDragging = false;
     });
@@ -848,7 +1006,7 @@
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (!selectedSymbol) return;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         deleteSelectedSymbol();
@@ -909,6 +1067,7 @@
       selectedSymbol[field] = val;
       redraw();
       renderSymbolList();
+      refreshJianpuPreview();
     }
 
     function parsePitchToControls(pStr) {
@@ -945,6 +1104,7 @@
       document.getElementById('pitchInput').value = p;
       redraw();
       renderSymbolList();
+      refreshJianpuPreview();
     }
 
     function onPitchManualChange() {
@@ -952,6 +1112,7 @@
       selectedSymbol.pitch = document.getElementById('pitchInput').value.trim();
       redraw();
       renderSymbolList();
+      refreshJianpuPreview();
     }
 
     function deleteSelectedSymbol() {
@@ -959,6 +1120,7 @@
       symbols = symbols.filter(s => s.id !== selectedSymbol.id);
       selectedSymbol = symbols[0] || null;
       updateSidebar();
+      refreshJianpuPreview();
       redraw();
     }
 
@@ -973,10 +1135,83 @@
           selectedSymbol = sym;
           updateSidebar();
           redraw();
-          // scroll to center if needed
         };
         list.appendChild(div);
       });
+    }
+
+    // Jianpu Configuration and Live Preview
+    function onJianpuConfigChange() {
+      redraw();
+      refreshJianpuPreview();
+    }
+
+    let jianpuDebounceTimer = null;
+    function refreshJianpuPreview() {
+      clearTimeout(jianpuDebounceTimer);
+      jianpuDebounceTimer = setTimeout(async () => {
+        const key = document.getElementById('jianpuKeySelect').value;
+        const meter = document.getElementById('jianpuMeterSelect').value;
+        try {
+          const resp = await fetch('/api/convert-to-jianpu', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbols: symbols, key: key, meter: meter, title: "即時樂譜" })
+          });
+          const res = await resp.json();
+          if (resp.ok && res.jianpu_text) {
+            document.getElementById('jianpuPreviewText').value = res.jianpu_text;
+            jianpuDownloadUrl = res.download_url || null;
+            if (jianpuDownloadUrl) {
+              document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
+            }
+          }
+        } catch (e) {
+          console.error("Jianpu preview error:", e);
+        }
+      }, 250);
+    }
+
+    function copyJianpuToClipboard() {
+      const text = document.getElementById('jianpuPreviewText').value;
+      if (!text) {
+        alert("目前尚無可複製的簡譜內容！");
+        return;
+      }
+      navigator.clipboard.writeText(text).then(() => {
+        alert("已成功複製簡譜至剪貼簿！");
+      }).catch(err => {
+        alert("複製失敗: " + err);
+      });
+    }
+
+    async function downloadJianpuFile() {
+      if (jianpuDownloadUrl) {
+        window.open(jianpuDownloadUrl, '_blank');
+        return;
+      }
+      showLoading("正在編譯簡譜下載檔案...");
+      try {
+        const key = document.getElementById('jianpuKeySelect').value;
+        const meter = document.getElementById('jianpuMeterSelect').value;
+        const resp = await fetch('/api/export-jianpu', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbols: symbols, key: key, meter: meter, title: "Jianpu Score" })
+        });
+        const res = await resp.json();
+        if (resp.ok && res.download_url) {
+          jianpuDownloadUrl = res.download_url;
+          document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
+          window.open(res.download_url, '_blank');
+        } else {
+          alert("簡譜匯出失敗: " + (res.error || "未知錯誤"));
+        }
+      } catch (err) {
+        alert("簡譜匯出錯誤: " + err);
+      } finally {
+        hideLoading();
+      }
     }
 
     // Export Corrected MusicXML
@@ -1000,6 +1235,27 @@
         hideLoading();
       }
     }
+
+    // Modal Dialog Helpers
+    function showNoticeModal(icon, title, message, suggestion, allowManual = true) {
+      document.getElementById('modalIcon').innerText = icon || '⚠️';
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerText = message;
+      document.getElementById('modalSuggestion').innerText = suggestion || '';
+      document.getElementById('modalSuggestion').style.display = suggestion ? 'block' : 'none';
+      document.getElementById('btnModalAction').style.display = allowManual ? 'inline-flex' : 'none';
+      document.getElementById('noticeModal').style.display = 'flex';
+    }
+
+    function closeNoticeModal() {
+      document.getElementById('noticeModal').style.display = 'none';
+    }
+
+    function onModalSwitchManual() {
+      closeNoticeModal();
+      setTool('add');
+    }
+  </script>
 
     // Modal Dialog Helpers
     function showNoticeModal(icon, title, message, suggestion, allowManual = true) {
