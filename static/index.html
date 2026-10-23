@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ScoreOCR Toolkit - 視覺化樂譜校對畫布</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <style>
     :root {
       --bg-main: #0f172a;
@@ -318,6 +319,67 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+
+    /* Notice / Error Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 520px;
+      padding: 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .modal-body {
+      font-size: 0.9rem;
+      color: var(--text-main);
+      line-height: 1.6;
+    }
+
+    .modal-suggestion {
+      background: rgba(245, 158, 11, 0.12);
+      border-left: 4px solid #f59e0b;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: #fde68a;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 8px;
+    }
   </style>
 </head>
 <body>
@@ -581,7 +643,7 @@
           body: formData
         });
         const result = await resp.json();
-        if (resp.ok) {
+        if (resp.ok && result.success !== false) {
           symbols = result.symbols || [];
           downloadUrl = result.musicxml;
           if (downloadUrl) {
@@ -591,7 +653,23 @@
           updateSidebar();
           redraw();
         } else {
-          alert("辨識失敗: " + (result.error || "未知錯誤"));
+          // 若後端有回傳影像路徑，仍確保影像載入至畫布
+          if (result.image_url) {
+            setImage(result.image_url, () => {
+              symbols = [];
+              selectedSymbol = null;
+              updateSidebar();
+              redraw();
+            });
+          }
+          const isNoStaff = result.error_type === "NO_STAFFS_FOUND";
+          showNoticeModal(
+            isNoStaff ? "🎼" : "⚠️",
+            isNoStaff ? "未偵測到標準五線譜 (No Staffs Found)" : "樂譜辨識提示",
+            result.error || "樂譜自動辨識未完成。",
+            result.suggestion || "請確認樂譜是否為標準五線譜格式。",
+            true
+          );
         }
       } catch (err) {
         alert("連線或處理發生錯誤: " + err);
@@ -922,6 +1000,46 @@
         hideLoading();
       }
     }
+
+    // Modal Dialog Helpers
+    function showNoticeModal(icon, title, message, suggestion, allowManual = true) {
+      document.getElementById('modalIcon').innerText = icon || '⚠️';
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalBody').innerText = message;
+      document.getElementById('modalSuggestion').innerText = suggestion || '';
+      document.getElementById('modalSuggestion').style.display = suggestion ? 'block' : 'none';
+      document.getElementById('btnModalAction').style.display = allowManual ? 'inline-flex' : 'none';
+      document.getElementById('noticeModal').style.display = 'flex';
+    }
+
+    function closeNoticeModal() {
+      document.getElementById('noticeModal').style.display = 'none';
+    }
+
+    function onModalSwitchManual() {
+      closeNoticeModal();
+      setTool('add');
+    }
   </script>
+
+  <!-- Notice & Recommendation Modal -->
+  <div id="noticeModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <span style="font-size: 1.8rem;" id="modalIcon">⚠️</span>
+        <h3 class="modal-title" id="modalTitle">未偵測到五線譜系統</h3>
+      </div>
+      <div class="modal-body" id="modalBody">
+        樂譜自動辨識說明
+      </div>
+      <div class="modal-suggestion" id="modalSuggestion">
+        建議事項
+      </div>
+      <div class="modal-footer">
+        <button onclick="closeNoticeModal()">關閉提示</button>
+        <button class="primary" id="btnModalAction" onclick="onModalSwitchManual()">了解，切換為手動標註 ➕</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

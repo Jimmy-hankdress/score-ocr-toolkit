@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Body
+from fastapi import FastAPI, UploadFile, File, Body, Response
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -7,6 +7,8 @@ import numpy as np
 from PIL import Image
 import io
 import sys
+import re
+import uuid
 from typing import List, Dict, Any
 
 from src.ocr.recognizer import symbols_to_dict
@@ -66,6 +68,14 @@ def index_ui():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/favicon.ico")
+def get_favicon():
+    favicon_path = STATIC_DIR / "favicon.ico"
+    if favicon_path.exists():
+        return FileResponse(favicon_path, media_type="image/x-icon")
+    return Response(status_code=204)
 
 
 @app.get("/api/sample")
@@ -135,25 +145,68 @@ async def recognize(file: UploadFile = File(...)):
     contents = await file.read()
     binary = preprocess_image(contents)
 
-    temp_path = PROCESSED_DIR / f"recognize_{file.filename}"
-    cv2.imwrite(str(temp_path), binary)
+    # 安全路徑命名：保留原本名稱作為標題，同時生成 ASCII/UUID 安全磁碟檔名
+    ext = Path(file.filename).suffix.lower() or ".png"
+    safe_token = uuid.uuid4().hex[:8]
+    safe_base = re.sub(r"[^a-zA-Z0-9_\-]", "_", Path(file.filename).stem) or "score"
+    raw_filename = f"raw_{safe_token}_{safe_base}{ext}"
+    proc_filename = f"proc_{safe_token}_{safe_base}.png"
 
+    raw_path = PROCESSED_DIR / raw_filename
+    proc_path = PROCESSED_DIR / proc_filename
+
+    # 保存原始未二值化檔案 (HOMR 深度學習模型在原始自然照片/掃描圖上表現最佳)
+    raw_path.write_bytes(contents)
+
+    # 安全寫入二值化圖 (避免 Windows 非 ASCII 檔名在 OpenCV 中寫入失敗)
+    success, encoded_img = cv2.imencode(".png", binary)
+    if success:
+        encoded_img.tofile(str(proc_path))
+
+    # 執行辨識
     try:
-        symbols = recognizer.recognize(str(temp_path))
+        symbols = recognizer.recognize(str(raw_path))
     except Exception as e:
+        err_msg = str(e)
+        if "No staffs found" in err_msg:
+            error_type = "NO_STAFFS_FOUND"
+            friendly_error = "未在影像中檢測到標準五線譜線系統 (No staffs found)。"
+            suggestion = (
+                "目前 HOMR 辨識核心專為「標準五線譜 (Western Staff Notation)」設計；"
+                "若您上傳的是「簡譜 / 數字譜 (1 2 3...)」、「吉他六線譜 (TAB)」或「純歌詞和弦譜」，AI 尚無法自動辨識。\n\n"
+                "建議：請改為上傳標準五線譜圖片 (如鋼琴、管弦樂譜)；或者您仍可利用畫布的「新增音符」工具直接手動標註！"
+            )
+        elif "No noteheads found" in err_msg:
+            error_type = "NO_NOTEHEADS_FOUND"
+            friendly_error = "五線譜中未檢測到清晰音符頭 (No noteheads found)。"
+            suggestion = "請確認樂譜圖片解析度足夠且未過度模糊、過暗或曝光過度。"
+        elif "No clefs found" in err_msg:
+            error_type = "NO_CLEFS_FOUND"
+            friendly_error = "未檢測到譜號 (Clef)。"
+            suggestion = "請確認樂譜影像開頭包含清楚的高音譜號或低音譜號。"
+        else:
+            error_type = "OMR_PROCESSING_ERROR"
+            friendly_error = f"OMR 辨識過程發生異常: {err_msg[:200]}"
+            suggestion = "請確認圖片為清晰的樂譜掃描圖或照片。"
+
         return JSONResponse(
             {
+                "success": False,
                 "filename": file.filename,
-                "error": str(e),
+                "image_url": f"/files/processed/{raw_filename}",
+                "error_type": error_type,
+                "error": friendly_error,
+                "suggestion": suggestion,
+                "detail": err_msg,
                 "symbol_count": 0,
                 "symbols": [],
                 "musicxml": None,
             },
-            status_code=422,
+            status_code=200,
         )
 
-    xml_name = f"recognize_{Path(file.filename).stem}.musicxml"
-    xml_path = temp_path.with_suffix(".musicxml")
+    xml_name = f"recognize_{safe_base}_{safe_token}.musicxml"
+    xml_path = raw_path.with_suffix(".musicxml")
     target_xml = PROCESSED_DIR / xml_name
 
     has_xml = False
@@ -167,8 +220,9 @@ async def recognize(file: UploadFile = File(...)):
         has_xml = True
 
     return {
+        "success": True,
         "filename": file.filename,
-        "image_url": f"/files/processed/{temp_path.name}",
+        "image_url": f"/files/processed/{raw_filename}",
         "symbol_count": len(symbols),
         "symbols": symbols_to_dict(symbols),
         "musicxml": f"/download/{xml_name}" if has_xml else None,
