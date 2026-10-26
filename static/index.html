@@ -8,7 +8,7 @@
 :root{--bg:#0f172a;--panel:#1e293b;--card:#334155;--border:#475569;--accent:#38bdf8;--accent2:#10b981;--accent3:#f97316;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b}
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:8px}
 .brand h1{font-size:1rem;font-weight:700;color:#fff}
 .badge{font-size:.7rem;background:#1d4ed8;color:#fff;padding:1px 7px;border-radius:99px;font-weight:600}
@@ -60,8 +60,8 @@ canvas{display:block;transform-origin:0 0}
 <div class="topbar">
   <div class="brand"><h1>&#x1F3BC; ScoreOCR Toolkit</h1><span class="badge">v3.00</span><span class="badge g">SheetMusicOMR</span></div>
   <span class="sp"></span>
-  <a href="/" class="btn" style="text-decoration:none;color:#fff;background:#3b82f6;border-color:#2563eb;" title="切換至 SheetMusicOMR 視覺工作台">🏠 工作台</a>
-  <a href="/editor/studio/default" class="btn" style="text-decoration:none;color:#fff;background:#8b5cf6;border-color:#7c3aed;" title="切換至 Score Studio 專業製譜編輯器">🎼 Score Studio</a>
+  <a href="/" class="btn" style="text-decoration:none;color:#fff;background:#3b82f6;border-color:#2563eb;" title="切換至 SheetMusicOMR 視覺工作台（預設開啟專業編輯模式）">🏠 主工作台</a>
+  <button class="btn" id="bToStudio" style="background:linear-gradient(135deg,#7c3aed,#2563eb);border-color:#8b5cf6;color:#fff;font-weight:700;" onclick="saveToWorkbenchAndOpenStudio(false)" title="一鍵將目前辨識/校對結果存入主工作台 SQLite 專案庫，並直接進入 Score Studio 編排和弦與歌詞">🎼 存入專案並開啟 Score Studio 編排和弦/歌詞</button>
   <input type="file" id="fi" accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf,.docx,.txt,.json,image/*">
   <button class="btn" onclick="document.getElementById('fi').click()">&#x1F4C1; 上傳檔案</button>
   <button class="btn" onclick="loadSample()">&#x1F3BC; 示範</button>
@@ -121,19 +121,27 @@ canvas{display:block;transform-origin:0 0}
         </div>
         <p class="hint">&#x1F79C; 箭頭鍵微調（Shift 快速），Delete 刪除，拖曳右下調整大小。</p>
       </div>
+      <div class="panel">
+        <div class="pt">進階編排（和弦 / 多行歌詞）</div>
+        <button class="btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#7c3aed,#2563eb);border-color:#8b5cf6;color:#fff;font-weight:700;" onclick="saveToWorkbenchAndOpenStudio(false)">🎼 一鍵存入 SQLite 並進入 Score Studio</button>
+        <p class="hint">將校對完的音符直接寫入主工作台專案列表，並開啟專業編輯模式編排和弦與歌詞。</p>
+      </div>
     </div>
     <!-- Jianpu tab -->
     <div class="tb" id="tb-j">
       <div class="panel">
         <div class="pt">簡譜預覽</div>
         <div class="row" style="margin-bottom:8px">
-          <div class="fg"><label>調號</label><select class="ctrl" id="jk" onchange="rJp()"><option value="C" selected>1=C</option><option value="G">1=G</option><option value="D">1=D</option><option value="A">1=A</option><option value="F">1=F</option><option value="Bb">1=Bb</option></select></div>
-          <div class="fg"><label>拍號</label><select class="ctrl" id="jm" onchange="rJp()"><option value="4/4" selected>4/4</option><option value="3/4">3/4</option><option value="2/4">2/4</option><option value="6/8">6/8</option></select></div>
+          <div class="fg"><label>調號</label><select class="ctrl" id="jk" onchange="refJP();redraw()"><option value="C" selected>1=C</option><option value="G">1=G</option><option value="D">1=D</option><option value="A">1=A</option><option value="F">1=F</option><option value="Bb">1=Bb</option></select></div>
+          <div class="fg"><label>拍號</label><select class="ctrl" id="jm" onchange="refJP()"><option value="4/4" selected>4/4</option><option value="3/4">3/4</option><option value="2/4">2/4</option><option value="6/8">6/8</option></select></div>
         </div>
         <div class="fg"><textarea class="jp" id="jpArea" rows="8" readonly></textarea></div>
         <div style="display:flex;gap:6px">
           <button class="btn" style="flex:1" onclick="cpyJp()">複製</button>
           <button class="btn s" style="flex:1;background:#0d9488;border-color:#14b8a6" onclick="dlJp()">下載簡譜</button>
+        </div>
+        <div style="margin-top:8px">
+          <button class="btn" style="width:100%;justify-content:center;background:linear-gradient(135deg,#7c3aed,#2563eb);border-color:#8b5cf6;color:#fff;font-weight:700;" onclick="saveToWorkbenchAndOpenStudio(false)">🎼 存入專案庫並進入 Score Studio 編排和弦/歌詞</button>
         </div>
       </div>
     </div>
@@ -151,11 +159,13 @@ canvas{display:block;transform-origin:0 0}
         <div class="pt">專案管理</div>
         <div class="fg"><label>專案名稱</label><input class="ctrl" id="pName" placeholder="我的樂譜" value=""></div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-          <button class="btn p" onclick="saveProj()">儲存專案</button>
-          <button class="btn" onclick="document.getElementById('pLoad').click()">載入專案 (JSON)</button>
+          <button class="btn" style="background:linear-gradient(135deg,#7c3aed,#2563eb);border-color:#8b5cf6;color:#fff;font-weight:700;" onclick="saveToWorkbenchAndOpenStudio(false)">🎼 一鍵存入主工作台 SQLite 並開啟 Score Studio</button>
+          <button class="btn" style="background:#4f46e5;border-color:#6366f1;color:#fff;" onclick="saveToWorkbenchAndOpenStudio(true)">🚀 存入 SQLite 並以獨立版 ScoreStudio 開啟</button>
+          <button class="btn p" onclick="saveProj()">💾 另存畫布專案檔 (JSON)</button>
+          <button class="btn" onclick="document.getElementById('pLoad').click()">📂 載入畫布專案 (JSON)</button>
           <input type="file" id="pLoad" accept=".json" onchange="loadProj(event)">
         </div>
-        <p class="hint">專案包含符號、設定、背景影像。</p>
+        <p class="hint">「存入主工作台 SQLite」會直接將簡譜小節寫入主工作台資料庫，可在專業編輯模式繼續加和弦、多行歌詞與移調。</p>
       </div>
       <div class="panel">
         <div class="pt">匯出</div>
@@ -169,7 +179,7 @@ canvas{display:block;transform-origin:0 0}
 </div>
 <script>
 const API='';
-let syms=[],sel=null,img=null,curBase='C',curAcc='';
+let syms=[],sel=null,img=null,curBase='C',curAcc='',curImgUrl=null;
 let tool='select',zoom=1,jpOn=true;
 let jpUrl=null,xmUrl=null,cFile=null;
 let isPan=false,isDr=false,dMode=null,pSX=0,pSY=0,sSX=0,sSY=0,dOX=0,dOY=0;
@@ -199,7 +209,7 @@ function zReset(){zoom=1;apZ();}
 function apZ(){cv.style.transform='scale('+zoom+')';document.getElementById('zLab').textContent=Math.round(zoom*100)+'%';}
 function showL(m){document.getElementById('ldTxt').textContent=m||'處理中...';document.getElementById('ld').style.display='flex';}
 function hideL(){document.getElementById('ld').style.display='none';}
-function setImg(src){const i=new Image();i.onload=()=>{cv.width=i.width;cv.height=i.height;redraw();};i.src=src;}
+function setImg(src){curImgUrl=src;const i=new Image();i.onload=()=>{cv.width=i.width;cv.height=i.height;redraw();};i.src=src;}
 
 async function loadSample(){
   showL('載入示範...');
@@ -211,6 +221,7 @@ async function loadSample(){
     xmUrl=d.musicxml||null;
     document.getElementById('bXml').style.display=xmUrl?'':'none';
     if(d.jianpu_text)document.getElementById('jpArea').value=d.jianpu_text;
+    if(!document.getElementById('pName').value)document.getElementById('pName').value='示範五線譜';
     sel=syms[0]||null;
     refAll();
   }catch(e){console.error(e);}
@@ -219,6 +230,8 @@ async function loadSample(){
 
 document.getElementById('fi').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;cFile=f;
+  const stem=f.name.replace(/\.[^.]+$/,'');
+  if(stem)document.getElementById('pName').value=stem;
   const ext=f.name.split('.').pop().toLowerCase();
   if(['png','jpg','jpeg','bmp','webp','tiff'].includes(ext)){
     const r=new FileReader();
@@ -239,8 +252,11 @@ async function runRecognize(){
     const d=await r.json();
     if(d.success!==false){
       syms=d.symbols||[];cFile=null;setImg(d.image_url);
-      xmUrl=d.xml_name?API+'/download/'+d.xml_name:null;
-      jpUrl=d.jianpu_name?API+'/download/'+d.jianpu_name:null;
+      if(d.filename&&!document.getElementById('pName').value){
+        document.getElementById('pName').value=d.filename.replace(/\.[^.]+$/,'');
+      }
+      xmUrl=d.xml_name?API+'/download/'+d.xml_name:(d.musicxml||null);
+      jpUrl=d.jianpu_name?API+'/download/'+d.jianpu_name:(d.jianpu_url||null);
       document.getElementById('bXml').style.display=xmUrl?'':'none';
       document.getElementById('bJp').style.display=jpUrl?'':'none';
       if(d.jianpu_text)document.getElementById('jpArea').value=d.jianpu_text;
@@ -424,6 +440,45 @@ function dlJp(){
   const k=document.getElementById('jk').value,m=document.getElementById('jm').value;
   fetch(API+'/api/export-jianpu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms,key:k,meter:m,title:'Jianpu'})})
     .then(r=>r.json()).then(d=>{if(d.download_url)window.open(d.download_url,'_blank');else alert('失敗');});
+}
+
+// One-click import into main workbench SQLite and open Score Studio
+async function saveToWorkbenchAndOpenStudio(standalone){
+  const nm=document.getElementById('pName').value.trim()||'畫布辨識樂譜';
+  const k=document.getElementById('jk').value||'C';
+  const m=document.getElementById('jm').value||'4/4';
+  let imgD='';
+  if(curImgUrl&&curImgUrl.startsWith('data:')){
+    imgD=curImgUrl;
+  }else{
+    try{const b=await new Promise(r=>cv.toBlob(r,'image/png'));imgD=await blob64(b);}catch(e){}
+  }
+  showL('正在存入主工作台 SQLite 並開啟 Score Studio...');
+  try{
+    const r=await fetch(API+'/api/import-from-canvas',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        project_name:nm,
+        symbols:syms,
+        key:k,
+        meter:m,
+        tempo:80,
+        image_data:imgD,
+        image_url:curImgUrl&&!curImgUrl.startsWith('data:')?curImgUrl:null
+      })
+    });
+    const d=await r.json();
+    if(r.ok&&d.status==='ok'&&d.projectId){
+      window.location.href=standalone?(d.standaloneStudioUrl||('/editor/studio/'+d.projectId)):(d.studioUrl||('/?project='+d.projectId));
+    }else{
+      alert('匯入失敗: '+(d.error||'未知錯誤'));
+    }
+  }catch(e){
+    alert('連線錯誤: '+e);
+  }finally{
+    hideL();
+  }
 }
 
 // Project

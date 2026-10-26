@@ -287,3 +287,64 @@ class TestUIEndpoint:
         response = client.get("/canvas-editor")
         assert response.status_code == 200
         assert "ScoreOCR" in response.text
+
+    def test_default_score_studio_mode_enabled(self, client):
+        """驗證預設直接開啟「專業編輯」(Score Studio) 模式"""
+        flags_resp = client.get("/api/flags/score-studio")
+        assert flags_resp.status_code == 200
+        flags = flags_resp.json()
+        assert flags["enabled"] is True
+        assert flags["default"] is True
+
+        redir_resp = client.get("/editor/doc_test123", follow_redirects=False)
+        assert redir_resp.status_code == 302
+        assert redir_resp.headers["location"] == "/editor/studio/doc_test123"
+
+    def test_import_from_canvas_to_sqlite_and_studio(self, client):
+        """驗證從畫布一鍵將結果存入主工作台 SQLite 專案列表並回傳 Score Studio 連結"""
+        symbols = [
+            {"id": "c1", "type": "chord", "pitch": "C", "x": 100, "y": 80, "width": 24, "height": 16},
+            {"id": "n1", "type": "note", "pitch": "C4", "duration": "quarter", "x": 100, "y": 100, "width": 18, "height": 16},
+            {"id": "n2", "type": "note", "pitch": "D4", "duration": "eighth", "x": 140, "y": 100, "width": 18, "height": 16},
+            {"id": "n3", "type": "note", "pitch": "E4", "duration": "eighth", "x": 170, "y": 100, "width": 18, "height": 16},
+            {"id": "n4", "type": "note", "pitch": "G4", "duration": "half", "x": 210, "y": 100, "width": 18, "height": 16},
+            {"id": "c2", "type": "chord", "pitch": "G7", "x": 300, "y": 80, "width": 24, "height": 16},
+            {"id": "n5", "type": "note", "pitch": "A4", "duration": "16th", "x": 300, "y": 100, "width": 18, "height": 16},
+            {"id": "n6", "type": "rest", "pitch": None, "duration": "quarter", "x": 340, "y": 100, "width": 18, "height": 16},
+        ]
+        resp = client.post(
+            "/api/import-from-canvas",
+            json={
+                "project_name": "畫布匯入測試曲",
+                "symbols": symbols,
+                "key": "C",
+                "meter": "4/4",
+                "tempo": 88,
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["ok"] is True
+        project_id = data["projectId"]
+        assert project_id.startswith("doc_")
+        assert data["measureCount"] == 2
+        assert data["studioUrl"] == f"/?project={project_id}"
+        assert data["standaloneStudioUrl"] == f"/editor/studio/{project_id}"
+
+        # 確認已寫入 SQLite 專案列表
+        list_resp = client.get("/api/projects")
+        assert list_resp.status_code == 200
+        projects = list_resp.json()
+        assert any(p.get("id") == project_id and p.get("title") == "畫布匯入測試曲" for p in projects)
+
+        # 確認可從主工作台專案 API 與 ScoreStudio API 讀取完整小節內容
+        doc_resp = client.get(f"/api/projects/{project_id}")
+        assert doc_resp.status_code == 200
+        doc = doc_resp.json()
+        assert doc["title"] == "畫布匯入測試曲"
+        assert len(doc["measures"]) == 2
+        assert doc["measures"][0]["noteText"] == "1 2_ 3_ 5 -"
+        assert doc["measures"][0]["chordText"] == "C"
+        assert doc["measures"][1]["noteText"] == "6__ 0"
+        assert doc["measures"][1]["chordText"] == "G7"

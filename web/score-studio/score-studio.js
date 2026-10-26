@@ -19,17 +19,14 @@
   const { ValidationUI } = window.ScoreStudioValidationUI;
 
   const params = new URLSearchParams(location.search);
-  const docId = params.get("doc");
-  if (!docId) {
-    const el = document.getElementById("ss-empty");
-    if (el) el.textContent = "用法：/score-studio/?doc=<專案ID>";
-  }
+  const pathMatch = location.pathname.match(/\/editor\/studio\/([^/?#]+)/);
+  let docId = params.get("doc") || params.get("project") || (pathMatch ? decodeURIComponent(pathMatch[1]) : null);
 
   const store = new Store();
   store.docId = docId;
   const history = new History(store, null);
   const renderer = new SVGRenderer(store);
-  const validationUI = new ValidationUI(store, api, docId);
+  let validationUI = new ValidationUI(store, api, docId);
   let rowEditor = null;
   let autoSaveTimer = null;
 
@@ -81,8 +78,31 @@
   }
 
   (async function init() {
-    if (!docId) return;
     try {
+      if (!docId || docId === "default") {
+        const res = await fetch("/api/projects");
+        const items = res.ok ? await res.json() : [];
+        if (items && items.length > 0) {
+          docId = items[0].id || items[0].docId;
+        } else {
+          const cr = await fetch("/api/projects", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: "未命名樂譜" })
+          });
+          if (cr.ok) {
+            const newDoc = await cr.json();
+            docId = newDoc.id;
+          }
+        }
+        store.docId = docId;
+        validationUI = new ValidationUI(store, api, docId);
+      }
+      if (!docId) {
+        const el = document.getElementById("ss-empty");
+        if (el) { el.style.display = "block"; el.textContent = "用法：/score-studio/?doc=<專案ID>"; }
+        return;
+      }
       const doc = await api.doc(docId).score();
       store.doc = doc;
       document.getElementById("ss-title").textContent = doc.title || docId;
@@ -110,7 +130,7 @@
                                  interaction, store, renderer, validationUI };
     } catch (e) {
       const el = document.getElementById("ss-empty");
-      if (el) el.textContent = "載入失敗：" + e.message;
+      if (el) { el.style.display = "block"; el.textContent = "載入失敗：" + e.message; }
     }
   })();
 
@@ -175,7 +195,7 @@
     });
     document.getElementById("ss-legacy-link").addEventListener("click", e => {
       e.preventDefault();
-      location.href = "/editor/legacy/" + encodeURIComponent(docId);
+      location.href = "/?project=" + encodeURIComponent(docId);
     });
     loadHistory();
   }

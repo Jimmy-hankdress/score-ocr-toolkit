@@ -1363,20 +1363,40 @@
     if (el) { el.textContent = msg; el.style.color = color || ''; }
   }
 
-  function loadProjects() {
-    api('/api/projects').then(function(items) {
+  function loadProjects(autoOpenDefault) {
+    return api('/api/projects').then(function(items) {
       var list = $('#project-list');
-      if (!list) return;
-      if (!items || items.length === 0) { list.innerHTML = '<p class="empty">尚無專案。</p>'; return; }
-      list.innerHTML = items.map(function(p) {
-        var id = p.id || p.docId;
-        return '<div class="project-item" data-id="' + id + '" style="padding:6px;border-bottom:1px solid var(--line-soft);font-size:11px;cursor:pointer;">' +
-          '<b>' + (p.title || '未命名樂譜') + '</b><br><span style="color:#a0aec0">' +
-          (p.measureCount || p.measures || '?') + ' 小節　' + (p.updatedAt || p.createdAt || '').substring(0, 10) + '</span></div>';
-      }).join('');
-      $$('.project-item').forEach(function(el) {
-        el.addEventListener('click', function() { openProject(el.getAttribute('data-id')); });
-      });
+      if (list) {
+        if (!items || items.length === 0) {
+          list.innerHTML = '<p class="empty">尚無專案。</p>';
+        } else {
+          list.innerHTML = items.map(function(p) {
+            var id = p.id || p.docId;
+            var activeStyle = (state3.currentDocId === id) ? 'background:rgba(59,130,246,0.18);border-left:3px solid #3b82f6;' : '';
+            return '<div class="project-item" data-id="' + id + '" style="padding:6px;border-bottom:1px solid var(--line-soft);font-size:11px;cursor:pointer;' + activeStyle + '">' +
+              '<b>' + (p.title || '未命名樂譜') + '</b><br><span style="color:#a0aec0">' +
+              (p.measureCount || p.measures || '?') + ' 小節　' + (p.updatedAt || p.createdAt || '').substring(0, 10) + '</span></div>';
+          }).join('');
+          $$('.project-item').forEach(function(el) {
+            el.addEventListener('click', function() { openProject(el.getAttribute('data-id')); });
+          });
+        }
+      }
+      if (autoOpenDefault && !state3.currentDocId) {
+        if (items && items.length > 0) {
+          var firstId = items[0].id || items[0].docId;
+          if (firstId) openProject(firstId);
+        } else {
+          api('/api/projects', { method: 'POST', body: JSON.stringify({ title: '未命名樂譜' }), headers: { 'Content-Type': 'application/json' } })
+            .then(function(doc) {
+              if (doc && doc.id) {
+                loadProjects(false);
+                openProject(doc.id);
+              }
+            }).catch(function() {});
+        }
+      }
+      return items;
     });
   }
 
@@ -1408,9 +1428,15 @@
       setSaveState('已載入：' + (doc.title || id), '#38a169');
       renderV3Editor();
       renderChordProFromDoc(doc);
-      // SoLa321 編輯器：重置游標與複撤銷歷史，再渲染
+      // SoLa321 編輯器：重置游標與複撤銷歷史，再渲染，並預設切至「專業編輯 (Score Studio)」模式
       initSola321EditState();
+      switchTab('sola321');
       renderSola321Score();
+      $$('.project-item').forEach(function(el) {
+        var isCurrent = el.getAttribute('data-id') === id;
+        el.style.background = isCurrent ? 'rgba(59,130,246,0.18)' : '';
+        el.style.borderLeft = isCurrent ? '3px solid #3b82f6' : '';
+      });
     }).catch(function(e) { toast('載入專案失敗：' + e.message, 'bad'); });
   }
 
@@ -7064,13 +7090,17 @@
     });
     if ($('#btn-refresh-tasks')) $('#btn-refresh-tasks').addEventListener('click', loadTasks);
     loadTasks();
-    loadProjects();
-    // Phase 1 Test: auto-load project from URL parameter ?project=ID
+    // 預設直接開啟「專業編輯」(Score Studio) 模式並自動載入指定專案或最新專案
+    switchTab('sola321');
     var urlParams = new URLSearchParams(window.location.search);
-    var projectId = urlParams.get('project');
+    var pathMatch = window.location.pathname.match(/\/editor\/(?:legacy\/)?([^/?#]+)/);
+    var projectId = urlParams.get('project') || urlParams.get('doc') || (pathMatch && pathMatch[1] !== 'default' ? decodeURIComponent(pathMatch[1]) : null);
     if (projectId) {
-      console.log('[Phase1] Auto-loading project:', projectId);
+      console.log('[ScoreStudio] Auto-loading requested project:', projectId);
+      loadProjects(false);
       openProject(projectId);
+    } else {
+      loadProjects(true);
     }
     if ($('#btn-new-project')) $('#btn-new-project').addEventListener('click', function() {
       api('/api/projects', { method: 'POST', body: JSON.stringify({ title: '未命名樂譜' }), headers: { 'Content-Type': 'application/json' } })

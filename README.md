@@ -56,16 +56,18 @@ flowchart TD
 
 ### 1. 補足前端 OMR 與三大專業編輯器生態
 - **🏠 SheetMusicOMR v3.00 主工作台 (`/`)**：
+  - **預設直接開啟「專業編輯」(Score Studio) 模式**：啟動或進入工作台時，預設直接切入 `Score Studio`（`#sola321-pane`）結構化專業編輯器，並自動載入指定專案或最新專案（若無專案則自動建立空白樂譜專案）。
   - **多階段 OMR 任務管線**：即時顯示上傳、預處理、版面分析、音符/文字辨識與封裝進度。
   - **簡譜與五線譜雙模式渲染**：內建 `jianpu-render.js` 與 SVG 樂譜排版引擎，支援高/低八度點、減時線、延音線、附點、小節線與拍號顯示。
   - **ChordPro 雙向即時同步 (`chordpro-parser.js` / `sync-coordinator.js`)**：支援 `[C]一閃一閃[G]亮晶晶` 語法與視覺化小節雙向同步編輯。
   - **吉他 / 烏克麗麗和弦指法圖庫 (`web/assets/chords.json` & SVG)**：內建常用和弦指型 SVG 與自動和弦推算。
   - **WebAudio 合成播放與伴奏**：支援單音、和弦伴奏、節拍器與速度（BPM）動態調整。
   - **自我學習曲線記憶庫 (`/api/learn/*`)**：自動記錄人工校對結果，持續優化後續 OMR 辨識準確率。
-- **🎼 Score Studio 專業編輯器 (`/editor/studio/{doc_id}`)**：
-  - 採用事件驅動模型（Event Model）與命令堆疊（Command Stack），提供完整的 Undo / Redo、小節拍數合理性檢查（Measure Validation）與直式/橫式簡譜排版。
+- **🎼 Score Studio 專業編輯器 (`/?project={doc_id}` / `/editor/studio/{doc_id}`)**：
+  - 採用事件驅動模型（Event Model）與命令堆疊（Command Stack），提供完整的 Undo / Redo、小節拍數合理性檢查（Measure Validation）、和弦滑軌對位、多行歌詞編排與直式/橫式簡譜排版。
 - **🎨 Canvas 視覺化校對畫布 (`/canvas-editor`)**：
   - 在原始樂譜掃描圖上直接疊加音符框（Bounding Box），支援滑鼠滾輪縮放、平移、框線拖曳微調、虛擬鋼琴鍵盤定音，以及即時首調簡譜角標預覽（`1=C`, `1=G`, `1=F` 等 12 調號）。
+  - **一鍵存入 SQLite 並開啟 Score Studio (`POST /api/import-from-canvas`)**：點擊頂部或側邊欄的「**🎼 存入專案並開啟 Score Studio 編排和弦/歌詞**」按鈕，即可將校對完的音符、休止符、和弦與背景原圖直接寫入主工作台 SQLite 專案列表，並自動跳轉至 Score Studio 繼續編排和弦與多行歌詞。
 
 ### 2. 多引擎 OMR 與多格式匯入/匯出
 - **支援匯入格式**：

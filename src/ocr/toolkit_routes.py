@@ -126,6 +126,17 @@ class ProjectSaveRequest(BaseModel):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
+class ImportFromCanvasRequest(BaseModel):
+    """從視覺化校對畫布直接匯入主工作台 SQLite 專案庫請求模型"""
+    project_name: str = Field(default="畫布辨識樂譜", max_length=150)
+    symbols: list[dict[str, Any]] = Field(default_factory=list)
+    key: str = Field(default="C")
+    meter: str = Field(default="4/4")
+    tempo: int = Field(default=80, ge=20, le=280)
+    image_data: str | None = Field(default=None, description="Base64 編碼的影像資料")
+    image_url: str | None = Field(default=None, description="已存在的圖片 URL")
+
+
 # ========== 工具函數 ==========
 
 def preprocess_image(contents: bytes) -> np.ndarray:
@@ -621,6 +632,192 @@ async def save_project(payload: ProjectSaveRequest) -> JSONResponse:
     except Exception as e:
         logger.exception("專案儲存失敗")
         return JSONResponse({"error": f"Failed to save project: {str(e)}"}, status_code=500)
+
+
+def _symbol_to_studio_tokens(sym_dict: dict[str, Any], key: str = "C") -> tuple[list[str], float]:
+    """將 Canvas Symbol 轉為 Score Studio (SheetMusicOMR) 原生簡譜 token 列表與拍數。"""
+    from src.ocr.jianpu_converter import DURATION_BEATS, pitch_to_jianpu
+
+    sym_type = str(sym_dict.get("type", "note")).lower()
+    dur = str(sym_dict.get("duration") or "quarter").lower()
+    beats = DURATION_BEATS.get(dur, 1.0)
+
+    if sym_type == "rest":
+        base = "0"
+    else:
+        pitch = str(sym_dict.get("pitch") or "C4")
+        base = pitch_to_jianpu(pitch, key)
+        if base == "?":
+            base = "1"
+        base = base.replace("\u0308", "\u0307\u0307").replace("\u0324", "\u0323\u0323")
+
+    if dur == "whole":
+        return [base, "-", "-", "-"], 4.0
+    if dur == "half":
+        return [base, "-"], 2.0
+    if dur == "quarter":
+        return [base], 1.0
+    if dur == "eighth":
+        return [f"{base}_"], 0.5
+    if dur in ("16th", "sixteenth"):
+        return [f"{base}__"], 0.25
+    if dur in ("32nd", "thirty-second"):
+        return [f"{base}___"], 0.125
+    return [base], beats
+
+
+@router.post("/api/import-from-canvas")
+async def import_from_canvas(payload: ImportFromCanvasRequest) -> JSONResponse:
+    """將視覺化校對畫布 (/canvas-editor) 的辨識與校對結果一鍵存入主工作台 SQLite 專案列表，並回傳 Score Studio 連結。"""
+    try:
+        from app import db as app_db
+        from app import projects as app_projects
+        from app.config import save_user_config
+        from app.models import ScoreDocument, ScoreMeasure, blank_document
+
+        title = (payload.project_name or "畫布辨識樂譜").strip() or "畫布辨識樂譜"
+        key = (payload.key or "C").strip() or "C"
+        meter = (payload.meter or "4/4").strip() or "4/4"
+        try:
+            beats_per_measure = float(int(meter.split("/")[0]))
+        except Exception:
+            beats_per_measure = 4.0
+
+        # 依 y 行分組、x 由左至右排序（與簡譜轉換器一致）
+        raw_syms = [dict(s) for s in (payload.symbols or []) if isinstance(s, dict)]
+        sorted_syms = sorted(raw_syms, key=lambda s: (int(float(s.get("y", 0))) // 80, float(s.get("x", 0))))
+
+        measures_data: list[dict[str, Any]] = []
+        cur_notes: list[str] = []
+        cur_chords: list[str] = []
+        cur_chord_offsets: list[int] = []
+        cur_lyrics: list[str] = []
+        cur_beats = 0.0
+
+        def flush_measure() -> None:
+            nonlocal cur_notes, cur_chords, cur_chord_offsets, cur_lyrics, cur_beats
+            if not cur_notes and not cur_chords and not cur_lyrics:
+                return
+            measures_data.append({
+                "noteText": " ".join(cur_notes),
+                "chordText": " ".join(cur_chords),
+                "chordOffsets": list(cur_chord_offsets),
+                "lyricText": " ".join(cur_lyrics),
+            })
+            cur_notes = []
+            cur_chords = []
+            cur_chord_offsets = []
+            cur_lyrics = []
+            cur_beats = 0.0
+
+        for sym in sorted_syms:
+            stype = str(sym.get("type", "note")).lower()
+            if stype == "clef":
+                continue
+            if stype == "barline":
+                flush_measure()
+                continue
+            if stype == "chord":
+                chord_name = str(sym.get("chord") or sym.get("pitch") or sym.get("text") or "C").strip()
+                if chord_name:
+                    cur_chords.append(chord_name)
+                    cur_chord_offsets.append(max(0, len(cur_notes)))
+                continue
+            if stype in ("note", "rest"):
+                tokens, b = _symbol_to_studio_tokens(sym, key=key)
+                if cur_beats + b > beats_per_measure + 0.01 and cur_notes:
+                    flush_measure()
+                cur_notes.extend(tokens)
+                cur_beats += b
+                lyric_val = str(sym.get("lyric") or sym.get("text") or "").strip()
+                if lyric_val:
+                    cur_lyrics.append(lyric_val)
+                if cur_beats >= beats_per_measure - 0.01:
+                    flush_measure()
+
+        flush_measure()
+
+        if not measures_data:
+            doc = blank_document(title=title, measures=4)
+            doc.key = key
+            doc.timeSignature = meter
+            doc.tempo = payload.tempo
+            doc.engineMode = "canvas-editor"
+        else:
+            measures: list[ScoreMeasure] = []
+            for idx, mdata in enumerate(measures_data):
+                m = ScoreMeasure(
+                    number=idx + 1,
+                    lineIndex=idx // 3,
+                    linePosition=(idx % 3) + 1,
+                    noteText=mdata["noteText"],
+                    chordText=mdata["chordText"],
+                    chordOffsets=mdata["chordOffsets"],
+                    lyricText=mdata["lyricText"],
+                )
+                m.beats = m.expand_beats(min_confidence=0.92)
+                measures.append(m)
+            doc = ScoreDocument(
+                title=title,
+                key=key,
+                timeSignature=meter,
+                tempo=payload.tempo,
+                measures=measures,
+                engineMode="canvas-editor",
+            )
+            doc.renumber()
+
+        # 若有背景影像，寫入暫存檔並隨專案匯入
+        source_file: Path | None = None
+        if payload.image_data:
+            try:
+                import base64
+                raw_b64 = payload.image_data.split(",")[1] if "," in payload.image_data else payload.image_data
+                img_bytes = base64.b64decode(raw_b64)
+                img_name = f"canvas_{uuid.uuid4().hex[:8]}.png"
+                source_file = PROCESSED_DIR / img_name
+                source_file.write_bytes(img_bytes)
+                doc.sourceName = img_name
+            except Exception as img_err:
+                logger.warning("儲存畫布背景影像失敗（忽略並繼續匯入專案）: %s", img_err)
+        elif payload.image_url and payload.image_url.startswith("/files/"):
+            rel = payload.image_url.removeprefix("/files/")
+            cand = DATA_DIR / rel
+            if cand.exists():
+                source_file = cand
+                doc.sourceName = cand.name
+
+        app_projects.import_document(doc, source_file=source_file)
+        save_user_config({"lastProjectId": doc.id})
+
+        # 同步建立一筆已完成的任務紀錄，讓工作台左側「任務歷史」也能直接點擊開啟
+        try:
+            task_id = f"task_{uuid.uuid4().hex[:10]}"
+            app_db.create_task(task_id, f"{title} (畫布匯入)", str(source_file or ""))
+            app_db.update_task(
+                task_id,
+                status="done",
+                progress=100,
+                message=f"由視覺校對畫布匯入（{len(doc.measures)} 小節）",
+                project_id=doc.id,
+            )
+        except Exception as task_err:
+            logger.warning("寫入工作台任務紀錄失敗: %s", task_err)
+
+        logger.info("畫布結果已匯入主工作台 SQLite 專案庫: id=%s, title=%s, measures=%d", doc.id, doc.title, len(doc.measures))
+
+        return JSONResponse({
+            "status": "ok",
+            "ok": True,
+            "projectId": doc.id,
+            "title": doc.title,
+            "measureCount": len(doc.measures),
+            "studioUrl": f"/?project={doc.id}",
+            "standaloneStudioUrl": f"/editor/studio/{doc.id}",
+        })
+    except Exception as e:
+        logger.exception("匯入主工作台失敗")
+        return JSONResponse({"status": "error", "error": f"匯入主工作台失敗: {str(e)}"}, status_code=500)
 
 
 @router.post("/api/project/load")

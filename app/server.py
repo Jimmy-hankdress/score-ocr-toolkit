@@ -36,16 +36,20 @@ from .scorestudio import score_studio_routes as ss_routes
 
 
 def _score_studio_flags() -> dict:
-    """§5.1：SCORE_STUDIO_ENABLED / SCORE_STUDIO_DEFAULT（user-config，預設 false）。"""
+    """§5.1：SCORE_STUDIO_ENABLED / SCORE_STUDIO_DEFAULT（預設開啟「專業編輯」Score Studio 模式）。"""
     cfg = load_user_config()
-    enabled = bool(cfg.get("scoreStudioEnabled", False))
-    default = bool(cfg.get("scoreStudioDefault", False))
+    enabled = bool(cfg.get("scoreStudioEnabled", True))
+    default = bool(cfg.get("scoreStudioDefault", True))
     # 環境變數可覆寫（離線、無雲端設定服務）
     import os
     if os.environ.get("SCORE_STUDIO_ENABLED") in {"1", "true", "yes"}:
         enabled = True
+    elif os.environ.get("SCORE_STUDIO_ENABLED") in {"0", "false", "no"}:
+        enabled = False
     if os.environ.get("SCORE_STUDIO_DEFAULT") in {"1", "true", "yes"}:
         default = True
+    elif os.environ.get("SCORE_STUDIO_DEFAULT") in {"0", "false", "no"}:
+        default = False
     return {"enabled": enabled, "default": default}
 
 ALLOWED_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1", "testserver"}
@@ -522,10 +526,12 @@ def create_app() -> FastAPI:
         app.include_router(ss_routes.router)
 
         @app.get("/api/flags/score-studio")
+        @app.get("/api/feature-flags")
         def get_score_studio_flags():
             return _score_studio_flags()
 
         @app.post("/api/flags/score-studio")
+        @app.post("/api/feature-flags")
         def set_score_studio_flags(payload: dict = Body(default={})):
             for k in ("scoreStudioEnabled", "scoreStudioDefault"):
                 if k in payload:
