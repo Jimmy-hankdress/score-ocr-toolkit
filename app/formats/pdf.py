@@ -12,7 +12,13 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-import pymupdf
+try:
+    import pymupdf
+except ImportError:
+    try:
+        import fitz as pymupdf  # type: ignore[no-redef]
+    except ImportError:
+        pymupdf = None  # type: ignore[assignment]
 
 
 SECTION_LABELS = {
