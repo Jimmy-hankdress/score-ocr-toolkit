@@ -4,7 +4,7 @@
 # ============================================================
 # 建置階段
 # ============================================================
-FROM python:3.11-slim AS builder
+FROM python:3.12-slim AS builder
 
 # 設定工作目錄
 WORKDIR /app
@@ -30,7 +30,7 @@ RUN pip install --no-cache-dir -r requirements-homr.txt || echo "HOMR install fa
 # ============================================================
 # 執行階段
 # ============================================================
-FROM python:3.11-slim AS runtime
+FROM python:3.12-slim AS runtime
 
 # 設定環境變數
 ENV PYTHONUNBUFFERED=1 \
