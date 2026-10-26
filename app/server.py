@@ -486,7 +486,6 @@ def create_app() -> FastAPI:
         router as toolkit_router,
         UPLOAD_DIR,
         PROCESSED_DIR,
-        STATIC_DIR,
         upload as toolkit_upload,
     )
     app.include_router(toolkit_router)
@@ -506,17 +505,6 @@ def create_app() -> FastAPI:
         studio_dir = web_dir / "score-studio"
         if studio_dir.exists():
             app.mount("/score-studio", StaticFiles(directory=str(studio_dir)), name="score-studio")
-
-        if STATIC_DIR.exists():
-            app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-            @app.get("/canvas-editor")
-            def canvas_editor():
-                return FileResponse(STATIC_DIR / "index.html")
-
-            @app.get("/visual-editor")
-            def visual_editor():
-                return FileResponse(STATIC_DIR / "index.html")
 
         @app.get("/")
         def index():

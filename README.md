@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/badge/version-3.0.0-emerald.svg)](https://github.com/Jimmy-hankdress/score-ocr-toolkit)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 
-**ScoreOCR Toolkit (v3.00 整合版)** 是結合 **SheetMusicOMR v3.00 離線多引擎樂譜辨識工作台**、**Score Studio 專業樂譜編輯器** 與 **HTML5 Canvas 視覺化校對畫布** 的完整本機優先（Local-first）樂譜數位化與編輯系統。
+**ScoreOCR Toolkit (v3.00 整合版)** 是結合 **SheetMusicOMR v3.00 離線多引擎樂譜辨識工作台** 與 **Score Studio 專業樂譜編輯器** 的完整本機優先（Local-first）樂譜數位化與編輯系統。
 
 支援將各類樂譜影像、PDF、Word (`.docx`)、MusicXML、MIDI、Sola321 (`.sola321`)、簡譜文字 (`.txt` / `.jianpu` / `.jpu`)、JSON 以及歌譜網址（URL 匯入），透過多引擎 OMR 管線轉換並於前端進行視覺化互動編輯、吉他/烏克麗麗和弦指法配對、ChordPro 雙向同步、首調移調與多格式匯出。
 
@@ -30,10 +30,9 @@ flowchart TD
         E4["多格式結構化轉換器<br/>(src/ocr/format_importer.py)"]
     end
 
-    subgraph Frontend["🖥️ 三大前端互動工作區 (無縫切換)"]
+    subgraph Frontend["🖥️ 雙核心前端互動工作區 (無縫切換)"]
         F1["🏠 SheetMusicOMR v3.00 主工作台 (/ )<br/>• 任務佇列與專案管理<br/>• 簡譜/五線譜 SVG 雙視圖渲染<br/>• ChordPro 雙向同步編輯器<br/>• 吉他/烏克麗麗和弦指法圖庫<br/>• 歌詞對位、自動伴奏與 WebAudio 播放"]
         F2["🎼 Score Studio 直式/專業編輯器 (/editor/studio/{id})<br/>• 結構化小節與聲部編輯<br/>• 撤銷/重做 Command Stack<br/>• 即時小節拍數驗證 (Measure Validator)<br/>• 鍵盤快捷輸入與批量移調"]
-        F3["🎨 Canvas 視覺化校對畫布 (/canvas-editor)<br/>• 原圖疊加音符 Bounding Box 校對<br/>• 滑鼠拖曳、四向縮放、新增/刪除音符<br/>• 虛擬鋼琴鍵盤與綠底簡譜角標即時預覽"]
     end
 
     subgraph Output["📤 全格式匯出層"]
@@ -47,14 +46,13 @@ flowchart TD
     Engine --> Frontend
     Frontend --> Output
     F1 <--> F2
-    F1 <--> F3
 ```
 
 ---
 
 ## ✨ 完整功能亮點
 
-### 1. 補足前端 OMR 與三大專業編輯器生態
+### 1. 補足前端 OMR 與雙核心專業編輯器生態
 - **🏠 SheetMusicOMR v3.00 主工作台 (`/`)**：
   - **預設直接開啟「專業編輯」(Score Studio) 模式**：啟動或進入工作台時，預設直接切入 `Score Studio`（`#sola321-pane`）結構化專業編輯器，並自動載入指定專案或最新專案（若無專案則自動建立空白樂譜專案）。
   - **多階段 OMR 任務管線**：即時顯示上傳、預處理、版面分析、音符/文字辨識與封裝進度。
@@ -65,9 +63,6 @@ flowchart TD
   - **自我學習曲線記憶庫 (`/api/learn/*`)**：自動記錄人工校對結果，持續優化後續 OMR 辨識準確率。
 - **🎼 Score Studio 專業編輯器 (`/?project={doc_id}` / `/editor/studio/{doc_id}`)**：
   - 採用事件驅動模型（Event Model）與命令堆疊（Command Stack），提供完整的 Undo / Redo、小節拍數合理性檢查（Measure Validation）、和弦滑軌對位、多行歌詞編排與直式/橫式簡譜排版。
-- **🎨 Canvas 視覺化校對畫布 (`/canvas-editor`)**：
-  - 在原始樂譜掃描圖上直接疊加音符框（Bounding Box），支援滑鼠滾輪縮放、平移、框線拖曳微調、虛擬鋼琴鍵盤定音，以及即時首調簡譜角標預覽（`1=C`, `1=G`, `1=F` 等 12 調號）。
-  - **一鍵存入 SQLite 並開啟 Score Studio (`POST /api/import-from-canvas`)**：點擊頂部或側邊欄的「**🎼 存入專案並開啟 Score Studio 編排和弦/歌詞**」按鈕，即可將校對完的音符、休止符、和弦與背景原圖直接寫入主工作台 SQLite 專案列表，並自動跳轉至 Score Studio 繼續編排和弦與多行歌詞。
 
 ### 2. 多引擎 OMR 與多格式匯入/匯出
 - **支援匯入格式**：
@@ -118,10 +113,9 @@ uvicorn app:app --reload --host 127.0.0.1 --port 8000
 ```
 
 啟動後可於瀏覽器開啟以下入口：
-- **🏠 SheetMusicOMR v3.00 主工作台**：`http://127.0.0.1:8000/`
-- **🎼 Score Studio 專業編輯器**：`http://127.0.0.1:8000/editor/studio/default`
-- **🎨 Canvas 視覺化校對畫布**：`http://127.0.0.1:8000/canvas-editor`
-- **📖 Swagger API 互動文件**：`http://127.0.0.1:8000/docs`
+- **🏠 SheetMusicOMR v3.00 主工作台（預設開啟專業編輯模式）**：`http://127.0.0.1:8763/`（或 `--port 8000`）
+- **🎼 Score Studio 專業編輯器**：`http://127.0.0.1:8763/editor/studio/default`
+- **📖 Swagger API 互動文件**：`http://127.0.0.1:8763/docs`
 
 ### 方式三：Docker 容器化部署
 
@@ -163,12 +157,11 @@ docker-compose --profile dev up -d
 | `POST` | `/api/studio/documents/{doc_id}/validate` | 執行小節拍數與樂理規則即時驗證 |
 | `POST` | `/api/studio/documents/{doc_id}/export` | 匯出 Score Studio 文檔為指定格式 |
 
-### 三、ScoreOCR Toolkit 畫布校對與快速轉換端點 (`src/ocr/toolkit_routes.py`)
+### 三、ScoreOCR Toolkit 快速轉換端點 (`src/ocr/toolkit_routes.py`)
 
 | 方法 | 路徑 | 說明 |
 | :--- | :--- | :--- |
 | `GET` | `/health` | 輕量健康檢查端點（回傳版本與支援副檔名清單） |
-| `GET` | `/canvas-editor` (`/ui`) | 開啟 HTML5 Canvas 視覺化音符框校對畫布 |
 | `GET` | `/api/sample` | 載入內建示範樂譜（`tabi.png`）與音符定位框、簡譜預覽 |
 | `POST` | `/upload` | 上傳單一檔案並執行 OpenCV 二值化預處理 |
 | `POST` | `/recognize` | 同步辨識端點：支援圖片、PDF、DOCX、TXT、JSON 轉 `Symbol[]`、MusicXML 與簡譜 |
@@ -253,10 +246,6 @@ score-ocr-toolkit/
 │       ├── index.html
 │       ├── app.js
 │       └── score-studio.css
-│
-├── static/                       # Canvas 視覺化校對畫布前端
-│   ├── index.html                # HTML5 Canvas 音符框校對單頁應用
-│   └── favicon.ico
 │
 ├── samples/                      # 內建測試與示範樂譜樣本 (小星星、奇異恩典、卡農等)
 └── tests/                        # 自動化測試套件 (152 項單元與整合測試)

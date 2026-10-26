@@ -30,16 +30,13 @@ flowchart TD
     subgraph UnifiedServer["🚀 FastAPI 統一伺服器 (app/server.py & app.py)"]
         R1["SheetMusicOMR v3.00 路由<br/>(/, /api/tasks, /api/projects, /api/learn, /api/import-url)"]
         R2["Score Studio 專業編輯器路由<br/>(/editor/studio/{id}, /api/studio/*)"]
-        R3["ScoreOCR Toolkit 畫布校對路由<br/>(/canvas-editor, /recognize, /api/convert-to-jianpu)"]
+        R3["ScoreOCR Toolkit 快速轉換路由<br/>(/recognize, /api/convert-to-jianpu, /api/import-from-canvas)"]
     end
 
-    subgraph FrontendSuite["🖥️ 三位一體前端編輯器 (頂部導覽列一鍵切換)"]
+    subgraph FrontendSuite["🖥️ 雙核心前端編輯器 (預設專業編輯模式)"]
         UI1["🏠 SheetMusicOMR v3.00 主工作台<br/>(web/index.html + web/assets/*)"]
         UI2["🎼 Score Studio 專業編輯器<br/>(web/score-studio/*)"]
-        UI3["🎨 Canvas 視覺化音符框校對畫布<br/>(static/index.html)"]
-        UI1 <-->|"頂部導覽按鈕"| UI3
         UI1 <-->|"進入專業編輯"| UI2
-        UI3 <-->|"返回工作台 / Score Studio"| UI2
     end
 
     subgraph BackendEngines["⚙️ 後端多引擎 OMR 與格式中心"]
@@ -64,9 +61,7 @@ flowchart TD
    - **自我學習曲線記憶庫 (`/api/learn/*`)**：使用者每次在編輯器修正辨識錯誤，系統會將校正樣本存入 SQLite 學習庫，自動提升後續同類樂譜的辨識率。
 2. **🎼 Score Studio 專業樂譜編輯器 (`/?project={doc_id}` & `/editor/studio/{doc_id}` -> `web/score-studio/`)**：
    - 提供結構化小節（Measure）、事件模型（Event Model）、撤銷/重做堆疊（`command_stack.js`）與即時拍數合理性檢查（`measure_validation.js`），支援和弦滑軌對齊、多行歌詞編排與直式/橫式簡譜排版。
-3. **🎨 Canvas 視覺化校對畫布 (`/canvas-editor` -> `static/index.html`)**：
-   - 針對需要直接對照原始掃描圖微調音符 Bounding Box 的場景，提供滑鼠縮放平移、音符框拖曳縮放、虛擬鋼琴鍵盤與綠底簡譜角標。
-   - **一鍵存入主工作台 SQLite 並開啟 Score Studio (`POST /api/import-from-canvas`)**：使用者在畫布校對完音符後，點擊頂部或側邊欄「**🎼 存入專案並開啟 Score Studio 編排和弦/歌詞**」，系統會自動將 Canvas 符號轉換為 `ScoreDocument` 小節結構、連同背景原圖寫入主工作台 SQLite 專案庫與任務列表，並直接跳轉至 `/?project=<projectId>`（Score Studio 專業編輯模式）繼續編排和弦與歌詞。
+   - **支援結構化符號直接匯入 SQLite 專案庫 (`POST /api/import-from-canvas`)**：可將辨識出的符號列表轉換為 `ScoreDocument` 小節結構寫入主工作台 SQLite 專案庫，並直接於 `/?project=<projectId>`（Score Studio 專業編輯模式）編排和弦與歌詞。
 
 ---
 
@@ -146,10 +141,6 @@ d:\goodle cloud\score-ocr-toolkit
 │   ├── assets/                       # 前端核心腳本、樣式與吉他/烏克麗麗和弦 SVG 庫
 │   └── score-studio/                 # Score Studio 專業編輯器前端資源
 │
-├── static/                           # 【畫布前端】Canvas 視覺化音符框校對畫布
-│   ├── index.html                    # Canvas 校對器 SPA
-│   └── favicon.ico                   # 網站圖示
-│
 ├── samples/                          # 示範樂譜樣本庫 (.musicxml, .sola321, .txt, .png)
 ├── config/ & docs/ & tools/          # 系統預設配置、說明文件與輔助工具腳本
 └── tests/                            # 單元測試與 API 整合測試 (共 152 項測試)
@@ -185,10 +176,9 @@ python launcher.py --port 8000
 ```
 
 啟動後可訪問：
-- **主工作台 (SheetMusicOMR v3.00)**：`http://127.0.0.1:8000/`
-- **專業編輯器 (Score Studio)**：`http://127.0.0.1:8000/editor/studio/default`
-- **畫布視覺校對器 (Canvas Proofreader)**：`http://127.0.0.1:8000/canvas-editor`
-- **API 互動文件 (Swagger UI)**：`http://127.0.0.1:8000/docs`
+- **主工作台 (SheetMusicOMR v3.00，預設開啟專業編輯模式)**：`http://127.0.0.1:8763/`（或 `--port 8000`）
+- **專業編輯器 (Score Studio)**：`http://127.0.0.1:8763/editor/studio/default`
+- **API 互動文件 (Swagger UI)**：`http://127.0.0.1:8763/docs`
 
 ### 2. 執行自動化測試
 

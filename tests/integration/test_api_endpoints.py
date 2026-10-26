@@ -276,17 +276,23 @@ class TestFaviconEndpoint:
 
 
 class TestUIEndpoint:
-    """前端頁面與雙編輯器路由"""
+    """前端頁面與專業編輯器路由"""
 
     def test_root_workbench_ui(self, client):
         response = client.get("/")
         assert response.status_code == 200
         assert "SheetMusicOMR" in response.text
+        assert "/canvas-editor" not in response.text
 
-    def test_canvas_editor_ui(self, client):
+    def test_canvas_editor_removed(self, client):
+        """驗證畫布視覺校對功能已移除，不再提供獨立畫布校對器"""
         response = client.get("/canvas-editor")
-        assert response.status_code == 200
-        assert "ScoreOCR" in response.text
+        assert "畫布視覺校對" not in response.text
+        assert "視覺化樂譜校對畫布" not in response.text
+
+        studio_resp = client.get("/editor/studio/default")
+        assert studio_resp.status_code == 200
+        assert "畫布校對" not in studio_resp.text
 
     def test_default_score_studio_mode_enabled(self, client):
         """驗證預設直接開啟「專業編輯」(Score Studio) 模式"""

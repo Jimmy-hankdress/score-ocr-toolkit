@@ -265,15 +265,6 @@ def favicon():
     return Response(status_code=204)
 
 
-@router.get("/ui")
-def index_ui():
-    """視覺化樂譜校對畫布"""
-    index_file = STATIC_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    return {"name": "ScoreOCR Toolkit", "status": "active"}
-
-
 @router.get("/api/sample")
 def get_sample_score():
     """載入示範樂譜 (tabi.png) 與已提取之音符框"""
