@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-10-26
+
+### Added
+- **Full SheetMusicOMR v3.00 Integration** (`app/`, `web/`): Multi-stage OMR task pipeline, SQLite project & self-learning store, ChordPro bidirectional sync, guitar/ukulele chord diagram libraries, URL score import (`POST /api/import-url`), and multi-format export (MusicXML, MIDI, PDF, Word, Sola321, TXT).
+- **Score Studio Professional Editor** (`app/scorestudio/`, `web/score-studio/`): Event-driven structured score editor with Command Stack undo/redo, real-time measure validation, chord track alignment, and multi-line lyrics editing.
+- **Default Professional Edit Mode**: Automatically opens `Score Studio` (`#sola321-pane` / `/editor/studio/{doc_id}`) by default on startup and loads the target or latest project.
+- **One-Click SQLite Project Import (`POST /api/import-from-canvas`)**: Converts recognized symbols into `ScoreDocument` measures, saves directly to the main SQLite project list, and returns Score Studio links.
+
+### Changed
+- **Removed Deprecated Canvas Visual Proofreader**: Removed the standalone `/canvas-editor` (`static/index.html`) UI and topbar navigation links in favor of the unified SheetMusicOMR v3.00 workbench and Score Studio professional editor.
+- **Fixed Windows `run.bat` Launcher**: Enforced CRLF line endings via `.gitattributes` and pure-ASCII batch syntax to prevent CMD encoding parse errors when double-clicking `run.bat`.
+
 ## [1.1.0] - 2026-10-24
 
 ### Added
