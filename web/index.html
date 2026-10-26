@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="referrer" content="no-referrer" />
+<title>樂譜數位化與本地化打譜工具</title>
+<!-- 強制覆蓋：確保顯示中的和弦面板為 grid，隱藏面板 ([hidden]) 維持隱藏 -->
+<style>
+  #chord-options:not([hidden]), #ukulele-options:not([hidden]) { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+  #chord-options[hidden], #ukulele-options[hidden] { display: none !important; }
+  .ss-font-slider, #sola-font-slider { display: none !important; }
+  #sola321-pane .sola321-toolbar { flex-wrap: nowrap !important; align-items: center !important; gap: 5px !important; padding: 5px 8px !important; margin-bottom: 4px !important; }
+  #sola321-pane .ss-zoom-pill { margin-left: auto !important; flex-shrink: 0 !important; }
+</style>
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="/assets/styles.css?v=v306-lyric-align-fix-1" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+        <span class="logo" aria-hidden="true">♪</span>
+        <div>
+          <div class="brand-title">樂譜數位化與本地化打譜工具</div>
+          <div class="brand-sub">SheetMusicOMR v3.05.07　全程本地　127.0.0.1</div>
+        </div>
+      </div>
+  <div class="topbar-right">
+    <a href="/canvas-editor" class="btn" style="text-decoration:none;display:inline-flex;align-items:center;background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;font-weight:600;" title="開啟 AI 畫布標註與五線譜/簡譜視覺校對器">🎨 畫布視覺校對</a>
+    <span class="badge badge-offline" id="badge-offline" title="本工具不呼叫任何外部服務">離線模式</span>
+    <span class="badge" id="badge-engine" title="OMR 引擎狀態">引擎：檢查中…</span>
+    <span class="save-state" id="save-state">尚未載入專案</span>
+    <button class="btn" id="btn-save" type="button">保存</button>
+    <div class="menu-wrap">
+      <button class="btn btn-primary" id="btn-export" type="button">匯出 ▾</button>
+      <div class="menu" id="export-menu" hidden>
+        <button type="button" data-export="pdf">PDF（.pdf）</button>
+        <button type="button" data-export="word">Word（.docx）</button>
+        <button type="button" data-export="musicxml">MusicXML（單一檔案）</button>
+        <button type="button" data-export="sola321">SoLa321</button>
+        <button type="button" data-export="midi">MIDI</button>
+        <button type="button" data-export="lilypond">SoLa321（結構化事件模型）</button>
+        <hr />
+        <button type="button" data-action="backup">備份專案（ZIP）</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="workspace">
+  <!-- A 區：左欄：導入、任務、專案 -->
+  <aside class="col col-left">
+    <section class="panel">
+      <h2>導入樂譜</h2>
+      <div class="engine-pick" style="margin-bottom:8px;">
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">OMR 引擎</label>
+        <select id="omr-engine-select" style="width:100%;padding:5px 6px;border-radius:6px;background:#131a24;border:1px solid var(--line-soft);color:var(--text);font-size:12px;">
+          <option value="scoreforge">ScoreForge（整譜＋和弦＋歌詞，推薦）</option>
+          <option value="jianpu2">jianpu2 Tesseract（逐頁幾何分析）</option>
+          <option value="jpeditor">jpeditor（MusicXML 直連）</option>
+          <option value="orpheus">OrpheusNet（CNN 純簡譜）</option>
+        </select>
+        <span id="omr-engine-note" style="font-size:10px;color:var(--text-dim);display:block;margin-top:4px;"></span>
+      </div>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button"
+           aria-label="拖放或點擊選擇檔案">
+        <strong>拖放檔案到這裡</strong>
+        <span>或點擊選擇檔案</span>
+        <small>PDF、JPG、PNG、WEBP、TIFF、BMP、HEIC、SON、CSV、TXT、JSON</small>
+      </div>
+      <input type="file" id="file-input" hidden
+             accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.heic,.son,.csv,.tsv,.txt,.json" />
+      <div class="url-import-box" style="margin-top:8px;">
+        <label for="url-import-input" style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">網址鏈接抓取歌譜</label>
+        <div style="display:flex;gap:6px;">
+          <input type="url" id="url-import-input"
+                 placeholder="貼上歌譜網址，如 https://jianpu.space/..."
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();if(window.importFromUrl)window.importFromUrl(this.value);}"
+                 style="flex:1;min-width:0;padding:5px 8px;border-radius:6px;background:#131a24;border:1px solid var(--line-soft);color:var(--text);font-size:12px;" />
+          <button type="button" id="btn-url-import" class="primary"
+                  onclick="if(window.importFromUrl)window.importFromUrl(document.getElementById('url-import-input').value);"
+                  style="padding:5px 10px;font-size:12px;white-space:nowrap;">抓取載入</button>
+        </div>
+      </div>
+      <div class="stage-flow" id="stage-flow">
+        <div class="stage" data-stage="upload"><b>1</b>上傳</div>
+        <div class="stage" data-stage="rasterize"><b>2</b>轉圖</div>
+        <div class="stage" data-stage="omr"><b>3</b>OMR 識別</div>
+        <div class="stage" data-stage="musicxml"><b>4</b>生成 XML</div>
+      </div>
+    </section>
+
+    <section class="panel panel-grow">
+      <h2>最近專案 <button class="link" id="btn-new-project" type="button">＋ 新建</button></h2>
+      <div class="list" id="project-list"><p class="empty">尚無專案。</p></div>
+    </section>
+
+    <section class="panel panel-grow">
+      <h2>轉換任務 <button class="link" id="btn-refresh-tasks" type="button">重新整理</button></h2>
+      <div class="list" id="task-list"><p class="empty">尚無任務。</p></div>
+    </section>
+  </aside>
+
+  <!-- B 區：中欄：ChordPro + V3 簡譜結構編輯器 + SoLa321 事件模型編輯器 -->
+  <section class="col col-center">
+  <div class="editor-container">
+  <div class="editor-tabs">
+    <button type="button" class="sidebar-toggle-btn" id="btn-toggle-left" title="收合/展開左側「導入樂譜」面板" onclick="const w=document.querySelector('.workspace');const h=w.classList.toggle('hide-left');this.classList.toggle('collapsed',h);this.textContent=h?'▶ 導入區':'◀ 導入區';">◀ 導入區</button>
+    <button type="button" class="editor-tab" id="tab-chordpro">ChordPro 文字</button>
+    <button type="button" class="editor-tab active" id="tab-sola321">Score Studio</button>
+    <button type="button" class="sidebar-toggle-btn sidebar-toggle-right" id="btn-toggle-right" title="收合/展開右側「和弦庫」面板" onclick="const w=document.querySelector('.workspace');const h=w.classList.toggle('hide-right');this.classList.toggle('collapsed',h);this.textContent=h?'和弦庫 ◀':'和弦庫 ▶';">和弦庫 ▶</button>
+  </div>
+      
+      <!-- ChordPro 文字編輯器（資料轉換／編輯入口）-->
+      <div id="chordpro-pane" class="editor-pane">
+        <div class="editor-header">
+          <h3>ChordPro 樂譜編輯器 <span class="sync-status-badge" title="ChordPro 與 Score Studio 雙向即時同步">⇄ 雙向同步就緒</span></h3>
+          <div class="editor-actions">
+            <button id="btn-insert-verse" class="btn btn-sm" data-section="verse">主歌</button>
+            <button id="btn-insert-chorus" class="btn btn-sm" data-section="chorus">副歌</button>
+            <button id="btn-insert-intro" class="btn btn-sm" data-section="intro">前奏</button>
+            <button id="btn-insert-bridge" class="btn btn-sm" data-section="bridge">橋段</button>
+            <button id="btn-insert-outro" class="btn btn-sm" data-section="outro">尾奏</button>
+            <button id="btn-chordpro-to-score" class="btn btn-sm" title="立即將 ChordPro 同步至樂譜並儲存">⇄ 同步至樂譜</button>
+          </div>
+        </div>
+        <textarea id="chordpro-editor" class="chordpro-editor" spellcheck="false"
+          placeholder="#title: 歌名&#10;#artist: 作者&#10;#key: C&#10;#bpm: 90&#10;#time: 4/4&#10;&#10;[verse]&#10;[C]歌詞第一行 [G]歌詞第二行&#10;[Am]歌詞第三行 [F]歌詞第四行&#10;&#10;[chorus]&#10;[C]副歌歌詞 [G]副歌歌詞&#10;[Am]副歌歌詞 [F]副歌歌詞"></textarea>
+      </div>
+      <div id="sola321-pane" class="editor-pane pane-active">
+                          <div class="editor-header sola321-top-header">
+                            <h3>Score Studio 網頁樂譜編輯器 <span class="sync-status-badge" title="Score Studio 與 ChordPro 雙向即時同步">⇄ 雙向同步就緒</span></h3>
+                            <div class="editor-actions sola321-top-actions">
+                              <button type="button" class="ss-top-btn sola321-tb-btn" data-op="undo" title="復原（Ctrl+Z）">↶ Undo</button>
+                              <button type="button" class="ss-top-btn sola321-tb-btn" data-op="redo" title="重做（Ctrl+Y）">↷ Redo</button>
+                              <button type="button" id="btn-sola321-reload" class="ss-top-btn" title="從伺服器重新載入目前專案">↻ 重新載入</button>
+                              <button type="button" id="btn-sola321-open-draft" class="ss-top-btn" title="從「暫存樂譜」資料夾開啟暫存檔（.json）直接進入編輯頁面繼續編輯">📂 開啟暫存檔</button>
+                              <input type="file" id="sola321-draft-input" accept=".json" hidden />
+                              <button type="button" id="btn-sola321-save" class="ss-top-btn" title="同步至 ChordPro 並立即儲存至「暫存樂譜」固定資料夾（以歌名命名）">立即儲存</button>
+                              <button type="button" id="btn-sola321-export-word" class="ss-top-btn" title="輸出 Word (.docx)">📄 輸出 Word</button>
+                              <button type="button" id="btn-sola321-export-pdf" class="ss-top-btn" title="輸出 PDF (.pdf)">📑 輸出 PDF</button>
+                              <button type="button" id="btn-sola321-print" class="ss-top-btn" title="列印預覽">🖨 列印預覽</button>
+                            </div>
+                          </div>
+                          <!-- 編輯工具列（依附圖設計：歌詞吸附｜段落▾ 小節▾ 音符▾ 符號▾｜字體縮放｜工作倍率） -->
+                          <div class="sola321-toolbar">
+                            <div class="ss-snap-pill">
+                              <span class="ss-snap-label">歌詞吸附</span>
+                              <button type="button" class="ss-snap-btn active" data-snap="note">音符</button>
+                              <button type="button" class="ss-snap-btn" data-snap="beat">整拍</button>
+                              <button type="button" class="ss-snap-btn" data-snap="free">自由</button>
+                              <button type="button" class="ss-snap-btn" id="btn-sola-snap-align" title="將歌詞對齊最近音符">⇥ 對齊最近音符</button>
+                            </div>
+
+                            <!-- 段落 ▾ -->
+                            <div class="ss-dd-wrap" id="ss-dd-section">
+                              <button type="button" class="ss-dd-trigger" data-dd="section">段落 <span class="ss-caret">▾</span></button>
+                              <div class="ss-dd-menu" role="menu">
+                                <div class="ss-dd-head">段落</div>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="intro">前奏</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="verse">主歌</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="chorus">副歌</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="bridge">間奏</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="outro">尾奏</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="A">A 段</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="B">B 段</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="C">C 段</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="section" data-val="D">D 段</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item is-danger" data-dd-act="section-clear">🗑 清除段落</button>
+                              </div>
+                            </div>
+
+                            <!-- 小節 ▾ -->
+                            <div class="ss-dd-wrap" id="ss-dd-measure">
+                              <button type="button" class="ss-dd-trigger" data-dd="measure">小節 <span class="ss-caret">▾</span></button>
+                              <div class="ss-dd-menu" role="menu">
+                                <div class="ss-dd-head">小節線與反覆</div>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="double-bar">‖ 雙槓終止線</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="repeat-start">𝄆 反覆開始</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="repeat-end">𝄇 反覆結束</button>
+                                <div class="ss-dd-sep"></div>
+                                <div class="ss-dd-head">小節操作</div>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="add-measure">＋ 增加1小節</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="copy-measure">⧉ 複製1小節</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="paste-measure">📋 貼上1小節</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="dup-measure">➕ 複製並插入1小節</button>
+                                <button type="button" class="ss-dd-item is-danger" data-dd-act="measure" data-val="del-measure">🗑 刪除1小節</button>
+                              </div>
+                            </div>
+
+                            <!-- 音符 ▾ -->
+                            <div class="ss-dd-wrap" id="ss-dd-note">
+                              <button type="button" class="ss-dd-trigger" data-dd="note">音符 <span class="ss-caret">▾</span></button>
+                              <div class="ss-dd-menu" role="menu">
+                                <div class="ss-dd-head">音符時值</div>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="A">全音 (1)</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="S">半音 (½)</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="D">4分 (♩)</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="F">8分 (♪)</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="G">16分</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="dur" data-val="H">32分</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="dot">附點 (.)</button>
+                              </div>
+                            </div>
+
+                            <!-- 符號 ▾ -->
+                            <div class="ss-dd-wrap" id="ss-dd-symbol">
+                              <button type="button" class="ss-dd-trigger" data-dd="symbol">符號 <span class="ss-caret">▾</span></button>
+                              <div class="ss-dd-menu" role="menu">
+                                <div class="ss-dd-head">符號</div>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="oct-up">↑ 高音 (八度 +1)</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="oct-down">↓ 低音 (八度 -1)</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="tie">⌒ 連音線</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="slur">⌣ 圓滑線</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="triplet">³ 三連音</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="sharp">♯ 升記號</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="flat">♭ 降記號</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="repeat-start">𝄆 前反覆 | :</button>
+                                <button type="button" class="ss-dd-item" data-dd-act="measure" data-val="repeat-end">𝄇 後反覆 : |</button>
+                                <div class="ss-dd-sep"></div>
+                                <button type="button" class="ss-dd-item" data-dd-act="op" data-val="rest">0 休止符</button>
+                              </div>
+                            </div>
+
+                            <!-- 字體縮放 -->
+                            <div class="ss-font-group">
+                              <span class="ss-font-label">字體</span>
+                              <button type="button" class="ss-ctrl-btn" id="btn-sola-font-dec" title="縮小字體">−</button>
+                              <span class="ss-font-val" id="sola-font-val">1.0×</span>
+                              <button type="button" class="ss-ctrl-btn" id="btn-sola-font-inc" title="放大字體">＋</button>
+                              <button type="button" class="ss-ctrl-btn ss-ctrl-reset" id="btn-sola-font-reset" title="重設字體大小">重設</button>
+
+                            </div>
+
+                            <!-- 工作倍率 -->
+                            <div class="ss-zoom-pill">
+                              <span class="ss-zoom-badge">🔍 工作倍率</span>
+                              <span class="ss-zoom-val" id="sola-zoom-val">100%</span>
+                              <button type="button" class="ss-ctrl-btn" id="btn-sola-zoom-dec" title="縮小工作倍率">−</button>
+                              <button type="button" class="ss-ctrl-btn" id="btn-sola-zoom-inc" title="放大工作倍率">＋</button>
+                            </div>
+
+                            <!-- 隱藏相容按鈕（供回歸測試腳本查詢與點擊 DOM） -->
+                            <div style="position:fixed;left:10px;top:10px;opacity:0;z-index:9999;display:flex;pointer-events:auto" aria-hidden="true">
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="A">A</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="S">S</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="D">D</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="F">F</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="G">G</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-dur="H">H</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="dot">.</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="triplet">R</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="sharp">♯</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="flat">♭</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="natural">♮</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="oct-up">↑</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="oct-down">↓</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="rest">0</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" data-op="del">⌫</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" id="sola-warnline-toggle">⚠</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" id="btn-v3-barline-add">＋│</button>
+                              <button class="sola321-tb-btn" style="width:4px;height:4px;padding:0;border:0;min-width:0" id="btn-v3-barline-del">－│</button>
+                            </div>
+                          </div>
+                          <div id="sola321-status" class="v3-note sola321-status-bar"></div>
+                                            <!-- 視覺化樂譜容器（直式編輯頁面） -->
+                                            <div id="sola321-score" class="sola321-score-container"></div>
+                      </div>
+    </div>
+  </section>
+
+  <!-- C 區：右欄：樂譜資訊與和弦庫面板 -->
+  <aside class="col col-right">
+    <!-- 樂譜資訊面板 -->
+    <section class="panel" id="meta-panel" style="margin-bottom: 12px; padding: 12px;">
+      <h2 style="font-size: 14px; margin: 0 0 10px; color: var(--text);">🎵 樂譜資訊</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div>
+          <label style="font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 2px;">歌名</label>
+          <input type="text" id="side-meta-title" placeholder="歌曲名稱" style="width: 100%; padding: 6px 8px; border-radius: 6px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 13px;" />
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div>
+            <label style="font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 2px;">作詞</label>
+            <input type="text" id="side-meta-lyricist" placeholder="作詞者" style="width: 100%; padding: 6px 8px; border-radius: 6px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 12px;" />
+          </div>
+          <div>
+            <label style="font-size: 11px; color: var(--text-dim); display: block; margin-bottom: 2px;">作曲</label>
+            <input type="text" id="side-meta-composer" placeholder="作曲者" style="width: 100%; padding: 6px 8px; border-radius: 6px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 12px;" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 和弦庫與指法圖面板 -->
+    <section class="panel panel-grow" id="chord-panel">
+      <h2>🎸 和弦庫與指法圖</h2>
+      <div class="instrument-toggle" style="display: flex; gap: 8px; margin: 8px 0 12px;">
+        <label style="flex: 1; text-align: center; padding: 6px 8px; border-radius: 6px; background: #1e293b; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600;">
+          <input type="radio" name="instrument" id="instrument-guitar" value="guitar" checked /> 🎸 吉他
+        </label>
+        <label style="flex: 1; text-align: center; padding: 6px 8px; border-radius: 6px; background: #1e293b; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 600;">
+          <input type="radio" name="instrument" id="instrument-ukulele" value="ukulele" /> 🪕 烏克麗麗
+        </label>
+      </div>
+      <div class="tonality-row">
+        <label style="font-size: 12px; color: var(--text-dim); margin-bottom: 4px;">選擇調性</label>
+        <select id="tonality-select" style="width: 100%; padding: 6px; border-radius: 6px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 12px;">
+          <option value="C" selected>C調</option>
+          <option value="G">G調</option>
+          <option value="D">D調</option>
+          <option value="A">A調</option>
+          <option value="E">E調</option>
+          <option value="F">F調</option>
+          <option value="Bb">Bb調</option>
+          <option value="Eb">Eb調</option>
+        </select>
+      </div>
+      <div class="chord-root-area">
+        <div class="chord-root-label">選擇根音</div>
+        <div id="root-grid" class="root-grid"></div>
+      </div>
+      <div class="chord-display">
+        <div id="chord-name-display" class="chord-name-display">—</div>
+        <div id="chord-diagram-main" class="chord-diagram-main">
+          <div class="chord-diagram-placeholder">點選和弦以顯示指法圖</div>
+        </div>
+      </div>
+      <div class="chord-variant-area">
+        <div class="chord-variant-label">和弦變化 (選擇即插入編輯區)</div>
+        <div id="chord-options" class="chord-variant-grid"></div>
+        <div id="ukulele-options" class="chord-variant-grid" hidden style="display: none;"></div>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<div class="toast-stack" id="toast-stack"></div>
+<div class="modal" id="modal" hidden>
+  <div class="modal-card">
+    <h3 id="modal-title">提示</h3>
+    <pre id="modal-body"></pre>
+    <div class="modal-actions"><button class="btn" id="modal-close" type="button">關閉</button></div>
+  </div>
+</div>
+
+<script src="/assets/jianpu-render.js"></script>
+<script src="/assets/event_model.js"></script>
+<script src="/assets/editor.js"></script>
+<script src="/assets/command_stack.js"></script>
+<script src="/assets/measure_validation.js"></script>
+<!-- ChordPro Bidirectional Sync Engine Modules -->
+<script src="/assets/chordpro-parser.js?v=v306-chord-draft-1"></script>
+<script src="/assets/sync-conflict.js"></script>
+<script src="/assets/sync-version.js"></script>
+<script src="/assets/sync-engine.js"></script>
+<script src="/assets/app.js?v=v306-lyric-align-fix-1"></script>
+</body>
+</html>

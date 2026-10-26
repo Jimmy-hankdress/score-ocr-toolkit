@@ -1,0 +1,2567 @@
+/* ==========================================================
+   完整樣式表 - 包含 Grid 佈局修復 + 所有 UI 元件樣式
+   ========================================================== */
+:root {
+  --bg: #0e1116;
+  --bg-raise: #151a22;
+  --bg-panel: #1a212b;
+  --line: #273140;
+  --line-soft: #1f2733;
+  --text: #e6ecf3;
+  --text-dim: #93a2b5;
+  --text-faint: #64748b;
+  --accent: #4f9dff;
+  --accent-dim: #1d3a5f;
+  --good: #35c48b;
+  --warn: #f0b429;
+  --bad: #f2685f;
+  --paper: #f7f4ec;
+  --paper-line: #ded7c6;
+  --paper-text: #21252b;
+  --radius: 10px;
+  --font: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Hiragino Sans TC",
+          "Source Han Sans TC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "Cascadia Mono", "JetBrains Mono", Consolas, "DejaVu Sans Mono", monospace;
+}
+
+* { box-sizing: border-box; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #3a4a5e; border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: #4a5a6e; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ssmv-btn.active-note-active { background: #1d4f2b; border-color: #3a9e5a; color: #eaf3ff; }
+.ssmv-btn:disabled { opacity: .35; cursor: not-allowed; }
+/* 6B-3B Active Note 狀態提示 */
+.active-note-status { font-size: 12px; color: var(--text-dim); margin-left: 8px; padding: 4px 8px; border-radius: 6px; background: var(--bg-panel); border: 1px solid var(--line); }
+/* ============= 頂部列 ============= */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #171d26, #131820);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.brand { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.logo {
+  width: 34px; height: 34px; flex: 0 0 34px;
+  display: grid; place-items: center;
+  background: var(--accent-dim); color: #cfe4ff;
+  border: 1px solid #2f5b8e; border-radius: 9px; font-size: 18px;
+}
+.brand-title { font-weight: 600; letter-spacing: .02em; }
+.brand-sub { font-size: 11.5px; color: var(--text-faint); }
+.topbar-right { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+
+.badge {
+  font-size: 11.5px; padding: 3px 9px; border-radius: 999px;
+  border: 1px solid var(--line); background: #111721; color: var(--text-dim);
+  white-space: nowrap;
+}
+.badge-offline { border-color: #1f5c46; background: #0f2a20; color: #7fe0b4; }
+.badge-ok { border-color: #1f5c46; background: #0f2a20; color: #7fe0b4; }
+.badge-bad { border-color: #6b2b28; background: #2a1210; color: #ffb3ad; }
+.save-state { font-size: 11.5px; color: var(--text-faint); min-width: 110px; text-align: right; }
+
+.btn {
+  font-family: inherit; font-size: 13px;
+  padding: 6px 13px; border-radius: 7px; cursor: pointer;
+  background: #1e2733; color: var(--text); border: 1px solid var(--line);
+  transition: background .15s, border-color .15s;
+}
+.btn:hover { background: #26323f; border-color: #3a4a5e; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: #1c4f8a; border-color: #2f6fbd; color: #eaf3ff; }
+.btn-primary:hover { background: #22619f; }
+.btn-ghost { background: transparent; color: var(--text-dim); }
+.btn-sm { font-size: 12px; padding: 4px 9px; }
+.toolbar-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.link {
+  background: none; border: 0; color: var(--accent); cursor: pointer;
+  font: inherit; font-size: 12px; padding: 0;
+}
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 40;
+  background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: 9px; padding: 5px; min-width: 210px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.5);
+}
+.menu button {
+  display: block; width: 100%; text-align: left; font: inherit; font-size: 13px;
+  padding: 7px 10px; border: 0; border-radius: 6px;
+  background: none; color: var(--text); cursor: pointer;
+}
+.menu button:hover { background: #223041; }
+.menu hr { border: 0; border-top: 1px solid var(--line-soft); margin: 5px 2px; }
+
+/* ============= 主要版面 Grid (10% 左欄 : 80% 中間編輯區 : 10% 右欄) ============= */
+.workspace {
+  flex: 1 1 auto; min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(155px, 10.5%) minmax(0, 1fr) minmax(170px, 11%);
+  gap: 8px;
+  padding: 8px 10px;
+  align-items: stretch;
+  transition: grid-template-columns 0.18s ease;
+}
+.workspace.hide-left:not(.hide-right) {
+  grid-template-columns: 0px minmax(0, 1fr) minmax(170px, 11%);
+}
+.workspace.hide-right:not(.hide-left) {
+  grid-template-columns: minmax(155px, 10.5%) minmax(0, 1fr) 0px;
+}
+.workspace.hide-left.hide-right {
+  grid-template-columns: 0px minmax(0, 1fr) 0px;
+}
+.workspace.hide-left .col-left,
+.workspace.hide-right .col-right {
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+  padding: 0;
+  border: none;
+}
+
+.col { min-height: 0; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+
+/* 左側欄 - 約佔 10.5%，限高＋可捲動 */
+.col-left {
+  width: 100%; min-width: 0;
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 中間欄 - 約佔 78.5%~80%，向兩側最大化延伸 */
+.col-center {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  overflow-y: auto;
+  max-height: calc(100vh - 72px);
+}
+.col-center .editor-container { flex: 1 1 auto; min-height: 0; width: 100%; }
+
+/* 右側欄 - 約佔 11%，限高＋可捲動 */
+.col-right {
+  width: 100%; min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(100vh - 72px);
+}
+
+/* ============= 面板（針對窄側欄精簡內距） ============= */
+.panel {
+  background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 8px 9px;
+}
+.panel-grow { flex: 1 1 auto; min-height: 110px; display: flex; flex-direction: column; }
+.panel h2 {
+  margin: 0 0 7px; font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); letter-spacing: .02em;
+  display: flex; align-items: center; justify-content: space-between; gap: 4px; flex-wrap: wrap;
+}
+.panel h2 small { font-size: 10px; font-weight: 400; color: var(--text-faint); margin-left: 2px; }
+.panel h3 { margin: 8px 0 4px; font-size: 10.5px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: .04em; }
+
+/* ============= 左側：導入區（適配 10% 窄欄） ============= */
+.dropzone {
+  border: 1.5px dashed var(--line); border-radius: 8px;
+  padding: 10px 6px; text-align: center; cursor: pointer;
+  transition: border-color .15s, background .15s;
+  background: #131820;
+}
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--accent); background: #161d2a;
+}
+.dropzone strong { display: block; font-size: 12px; margin-bottom: 2px; }
+.dropzone span { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
+.dropzone small { font-size: 9.5px; color: var(--text-faint); line-height: 1.3; display: block; word-break: break-word; }
+
+.stage-flow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 8px; }
+.stage {
+  background: #131820; border: 1px solid var(--line); border-radius: 5px;
+  padding: 4px 4px; text-align: center; font-size: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: border-color .15s, background .15s;
+}
+.stage b { display: inline; font-size: 11.5px; font-weight: 700; color: var(--accent); margin: 0; }
+.stage.active { border-color: var(--accent); background: #142332; }
+.stage.done { border-color: var(--good); background: #12261a; }
+.stage.error { border-color: var(--bad); background: #2a1210; }
+
+/* ============= 右側：和弦面板（適配 10%~11% 窄欄） ============= */
+.instrument-toggle { display: flex; gap: 5px; margin-bottom: 8px; }
+.instrument-toggle label { flex: 1; text-align: center; font-size: 11.5px; cursor: pointer; padding: 5px 4px; border-radius: 7px; background: #131820; border: 1px solid var(--line); color: var(--text-dim); justify-content: center; }
+.instrument-toggle input[type="radio"] { display: none; }
+.instrument-toggle input:checked + label { border-color: var(--accent); background: #161d2a; color: var(--accent); font-weight: 600; }
+#tonality-select { width: 100%; padding: 4px 6px; border-radius: 6px; background: #131820; border: 1px solid var(--line); color: var(--text); font-size: 11.5px; }
+.chord-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-bottom: 6px; }
+.chord-item { cursor: pointer; padding: 4px; border-radius: 6px; border: 1px solid var(--line); background: #131820; transition: all .15s; }
+.chord-item:hover { background: #1a2332; border-color: var(--accent); transform: translateY(-1px); }
+.chord-item .chord-label { font-size: 10.5px; font-weight: 600; color: #fff; text-align: center; margin-bottom: 2px; }
+.chord-diagram-wrap { display: flex; justify-content: center; padding: 1px; }
+.chord-root-label { font-size: 10.5px; color: var(--text-faint); margin: 6px 0 4px; }
+.root-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin-bottom: 8px; }
+.root-btn { padding: 5px 2px; border-radius: 6px; border: 1px solid var(--line); background: #131820; color: var(--text); font-size: 11px; font-weight: 600; cursor: pointer; transition: all .15s; min-width: 0; }
+.root-btn:hover { background: #1a2332; }
+.root-btn.active { background: #e0f2fe; color: #0f172a; border-color: var(--accent); }
+.chord-display { margin: 6px 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 4px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); text-align: center; }
+.chord-name-display { font-size: 15px; font-family: Georgia, 'Times New Roman', serif; font-weight: 700; color: #0f172a; margin-bottom: 2px; min-height: 19px; }
+.chord-diagram-main { display: flex; align-items: center; justify-content: center; min-height: 78px; }
+.chord-diagram-placeholder { font-size: 11px; color: #94a3b8; }
+.chord-diagram-main svg { max-width: 100%; max-height: 92px; height: auto; }
+.chord-variant-label { font-size: 10.5px; color: var(--text-faint); margin-bottom: 4px; }
+.chord-variant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; margin-bottom: 8px; }
+.chord-variant-item { cursor: pointer; padding: 4px 2px; border-radius: 6px; border: 1px solid #e2e8f0; background: #fff; transition: all .15s; text-align: center; font-size: 11px; display: flex; flex-direction: column; align-items: center; justify-content: center; white-space: nowrap; min-width: 0; overflow: hidden; }
+.chord-variant-item:hover { background: #f1f5f9; border-color: #94a3b8; }
+.chord-variant-item.active { background: #d1fae5; border-color: #34d399; }
+.chord-variant-item .chord-symbol { font-weight: 700; color: #0f172a; font-size: 11px; line-height: 1.2; }
+.chord-variant-item .chord-zh { font-size: 9px; color: #64748b; line-height: 1.15; }
+.chord-variant-item.active .chord-symbol { color: #065f46; }
+.chord-variant-item.active .chord-zh { color: #065f46; }
+
+.list { overflow-y: auto; flex: 1 1 auto; display: flex; flex-direction: column; gap: 7px; }
+.list-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 10px; background: #151a22; border: 1px solid var(--line);
+  border-radius: 6px; font-size: 12px;
+}
+.list-item:hover { border-color: var(--line-soft); }
+.list-item .name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-item .meta { font-size: 10.5px; color: var(--text-faint); white-space: nowrap; }
+.list-item .actions { display: flex; gap: 4px; }
+.empty { color: var(--text-faint); text-align: center; padding: 16px; font-size: 12px; }
+
+.card {
+  background: #151a22; border: 1px solid var(--line); border-radius: 6px;
+  padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+}
+.card:hover { border-color: #3a4a5e; }
+.card.selected { border-color: var(--accent); background: #142332; }
+.card-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-name { flex: 1; min-width: 0; font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status-pill { font-size: 10px; padding: 1px 8px; border-radius: 999px; background: #1e2733; color: var(--text-dim); white-space: nowrap; flex: 0 0 auto; }
+.status-pill.status-done { background: #0f2a20; color: #7fe0b4; }
+.status-pill.status-failed { background: #2a1210; color: #ffb3ad; }
+.status-pill.status-running { background: #142332; color: #8ec2ff; }
+.card-meta { font-size: 10.5px; color: var(--text-faint); margin-top: 3px; }
+.bar { height: 5px; background: #1f2733; border-radius: 3px; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
+.bar.done i { background: var(--good); }
+.bar.failed i { background: var(--bad); }
+.card-msg { font-size: 10.5px; color: var(--text-dim); margin-top: 4px; }
+.card-error { font-size: 10.5px; color: var(--bad); margin-top: 4px; }
+.card-actions { display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap; }
+
+/* ============= 中間：編輯器 ============= */
+.editor-container { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.editor-container > .editor-pane { display: none; min-height: 0; flex-direction: column; }
+.editor-container > .editor-pane.pane-active { display: flex; flex: 1 1 auto; }
+.editor-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; flex: 0 0 auto; flex-wrap: wrap; gap: 8px;
+}
+.editor-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.editor-footer {
+  display: flex; gap: 8px; flex: 0 0 auto; padding: 4px 0 8px;
+}
+.v3-rows-container {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0;
+}
+.editor-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.chordpro-editor {
+  flex: 1 1 auto; min-height: 0;
+  width: 100%; box-sizing: border-box;
+  background: #10141a; color: var(--text); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 12px; font-family: var(--mono);
+  font-size: 13px; line-height: 1.6; resize: none; outline: none;
+}
+.chordpro-editor::placeholder { color: var(--text-faint); }
+
+.preview-pane { display: none; flex-direction: column; height: 100%; }
+.preview-header { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-bottom: 1px solid var(--line); }
+.preview-title { font-weight: 600; }
+.preview-controls { display: flex; gap: 8px; align-items: center; }
+.preview-controls select { font-size: 12px; padding: 4px 8px; background: #1a212b; border: 1px solid var(--line); border-radius: 4px; color: var(--text); }
+.preview-content { flex: 1 1 auto; overflow-y: auto; padding: 16px; font-family: var(--font); line-height: 1.8; }
+.preview-content .chord { color: var(--accent); font-weight: 600; }
+.preview-content .lyric { color: var(--text); }
+.preview-content .section { color: var(--text-dim); font-weight: 600; margin-top: 12px; }
+
+.editor-statusbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 10px; border-top: 1px solid var(--line);
+  color: var(--text-faint); font-size: 11.5px;
+}
+
+/* ============= 右側：工具箱 ============= */
+.chord-categories { display: flex; flex-direction: column; gap: 10px; }
+.chord-category h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; }
+/* .chord-grid { display: flex; flex-wrap: wrap; gap: 4px; } - replaced by grid layout above *
+.chord-btn {
+  padding: 4px 10px; font-size: 12px; background: #1e2733; color: var(--text);
+  border: 1px solid var(--line); border-radius: 4px; cursor: pointer;
+  white-space: nowrap; transition: all .15s;
+}
+.chord-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+.chord-btn.dragging { opacity: .5; }
+
+.notation-groups { display: flex; flex-direction: column; gap: 10px; }
+.notation-group h3 { margin: 0 0 6px; font-size: 11px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; }
+.notation-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.symbol-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+.notation-btn {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  background: #1e2733; color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; font-size: 14px; cursor: pointer; transition: all .15s;
+}
+.notation-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: #fff; }
+.notation-btn.dragging { opacity: .5; }
+.uke-diagram-title { font-size: 11px; color: var(--text-faint); margin-top: 10px; margin-bottom: 4px; }
+
+/* 樂器切換 */
+.instrument-toggle { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.instrument-toggle label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); cursor: pointer; }
+.instrument-toggle input[type="radio"] { accent-color: var(--accent); }
+
+/* ============= Toast ============= */
+.toast-stack {
+  position: fixed; right: 16px; bottom: 16px; z-index: 80;
+  display: flex; flex-direction: column; gap: 8px; max-width: 420px;
+}
+.toast {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px; background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  animation: slideIn .25s ease-out;
+}
+@keyframes slideIn { from { opacity: 0; transform: translateX(100%); } to { opacity: 1; transform: translateX(0); } }
+.toast-icon { flex: 0 0 20px; width: 20px; height: 20px; display: grid; place-items: center; font-size: 14px; }
+.toast.success .toast-icon { color: var(--good); }
+.toast.error .toast-icon { color: var(--bad); }
+.toast.warn .toast-icon { color: var(--warn); }
+.toast.info .toast-icon { color: var(--accent); }
+.toast-content { flex: 1; min-width: 0; }
+.toast-title { font-weight: 600; font-size: 13px; }
+.toast-message { font-size: 12px; color: var(--text-dim); margin-top: 2px; white-space: pre-wrap; }
+.toast-close { flex: 0 0 20px; width: 20px; height: 20px; display: grid; place-items: center; color: var(--text-faint); cursor: pointer; border: none; background: none; font-size: 16px; line-height: 1; }
+
+/* ============= Modal ============= */
+.modal {
+  position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.7); opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.modal:not([hidden]) { opacity: 1; pointer-events: auto; }
+.modal-card {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 20px; min-width: 360px; max-width: 560px; max-height: 80vh;
+  display: flex; flex-direction: column; box-shadow: 0 24px 48px rgba(0,0,0,.5);
+}
+.modal-title { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+.modal-body { flex: 1; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.6; white-space: pre-wrap; background: #10141a; border: 1px solid var(--line); border-radius: 6px; padding: 12px; color: var(--text); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+/* ============= 響應式 ============= */
+@media (max-width: 1400px) {
+  .workspace { grid-template-columns: minmax(145px, 10.5%) minmax(0, 1fr) minmax(160px, 11%); gap: 6px; padding: 6px 8px; }
+  .col-left, .col-right { width: 100%; }
+}
+@media (max-width: 900px) {
+  /* 單欄堆疊：col-right（和弦庫）不再換到第二列第一欄蓋住導入面板，
+     且各欄取自然高度、由 workspace 整體捲動——避免 .col{min-height:0}
+     把 grid 行壓扁造成 col-center 覆蓋 dropzone（點擊落不到上傳區）。 */
+  .workspace { grid-template-columns: 1fr !important; gap: 12px; padding: 12px; overflow-y: auto; align-content: start; }
+  .col { min-height: auto; }
+  .col-left, .col-center, .col-right {
+    width: 100%; min-width: 0; max-width: none;
+    max-height: none; overflow: visible;
+  }
+}
+/* ===== V3.00 簡譜編輯器 ===== */
+.editor-tabs { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.editor-tab { padding: 4px 12px; border: 1px solid var(--line-soft); border-radius: 6px; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 12px; }
+.editor-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sidebar-toggle-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: #151b24;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+.sidebar-toggle-btn:hover { background: #1e2733; color: var(--text); border-color: var(--accent); }
+.sidebar-toggle-btn.collapsed { background: var(--accent-dim); color: #cfe4ff; border-color: var(--accent); }
+.sidebar-toggle-right { margin-left: auto; }
+.editor-toolbar-v3 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.v3-label { font-size: 11px; color: var(--text-dim); }
+.v3-select, .v3-num { padding: 4px 6px; border-radius: 6px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 12px; }
+.v3-num { width: 52px; }
+.v3-note { font-size: 11px; color: var(--text-dim); }
+.v3-sep { width: 1px; height: 22px; background: var(--line-soft); margin: 0 6px; }
+.v3-octave { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; }
+.v3-octave .octave-icon { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.v3-octave button:hover { background: var(--accent-dim); }
+.v3-octave-up { color: #60a5fa; }
+.v3-octave-down { color: #f87171; }
+.v3-editor { font-family: Consolas, monospace; font-size: 13px; }
+.v3-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 8px; padding: 6px 0; border-bottom: 1px dashed var(--line-soft); }
+.v3-row-label { font-size: 10px; color: var(--text-dim); text-align: right; padding-right: 4px; display: flex; align-items: center; }
+.v3-cell { display: flex; flex-direction: column; border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden; min-height: 64px; position: relative; cursor: pointer; }
+.v3-cell.selected { border: 2px solid #60a5fa; background: rgba(96, 165, 250, 0.08); }
+.v3-cell input { width: 100%; border: none; background: transparent; padding: 2px 6px; font-family: "Segoe UI Symbol", "Microsoft YaHei", "Noto Sans CJK SC", "Arial Unicode MS", Consolas, monospace; font-size: 14px; color: var(--text); outline: none; }
+.v3-cell input:focus { background: #1b2a3a; }
+.v3-cell .v3-input-chord { color: #f87171; font-weight: bold; }
+.v3-cell .v3-input-note { color: var(--text); font-variant-numeric: tabular-nums; }
+.v3-cell .v3-input-lyric { color: #93c5fd; }
+.v3-del { position: absolute; top: 2px; right: 2px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; font-size: 10px; opacity: 0; }
+.v3-cell:hover .v3-del { opacity: 1; }
+.v3-del:hover { color: #f87171; }
+.v3-add { margin: 6px 0; }
+.v3-meta { display: flex; gap: 12px; flex-wrap: wrap; padding: 8px 0; font-size: 12px; }
+.v3-meta label { color: var(--text-dim); display: flex; align-items: center; gap: 4px; }
+.v3-meta input, .v3-meta select { padding: 3px 6px; border-radius: 4px; background: #131a24; border: 1px solid var(--line-soft); color: var(--text); font-size: 12px; width: 90px; }
+.v3-preview-frame { width: 100%; height: 480px; border: 1px solid var(--line-soft); border-radius: 6px; background: #fff; }
+
+/* ===== V3.00 SoLa321 編輯器：結構化事件模型（JSON 可編輯區）===== */
+#sola321-editor {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 280px;
+  resize: vertical;
+  padding: 10px 12px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  background: #131a24;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  outline: none;
+  white-space: pre;
+  margin-bottom: 8px;
+  overflow: auto;
+}
+#sola321-editor:focus { border-color: var(--accent, #48bb78); }
+#sola321-pane .chordpro-editor { flex: 1 1 auto; }
+#sola321-status { font-size: 12px; }
+
+/* ===== V3.00 contenteditable 簡譜輸入框 ===== */
+.v3-input-note[contenteditable] {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  font-family: "Segoe UI Symbol", "Microsoft YaHei", "Noto Sans CJK SC", "Arial Unicode MS", Consolas, monospace;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  line-height: 2.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.v3-input-note[contenteditable]:focus {
+  background: #1b2a3a;
+}
+.v3-input-note[contenteditable]:empty:before {
+  content: attr(placeholder);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+/* 數字 span：可點擊，選中時高亮。inline-block 作為 dot 的 absolute 定位基準 */
+.v3-note-char {
+  cursor: pointer;
+  user-select: none;
+  display: inline-block;
+  position: relative;
+  min-width: 1ch;
+  text-align: center;
+  line-height: 1;   /* 收緊行框，dot 才能貼近數字字形（不繼承 2.4 大行高） */
+}
+.v3-note-char .v3-digit { position: relative; }
+/* 圓點：CSS 絕對定位小圓點（黑色、約「i」點比例、緊貼字形） */
+.v3-note-char .v3-dot {
+  position: absolute;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;  /* 深色主題背景，用白色才看得見（跟數字同色） */
+  pointer-events: none;
+}
+.v3-note-char .v3-dot.above { top: -6px; transform: translateX(-50%); }
+.v3-note-char .v3-dot.above2 { top: -12px; }
+.v3-note-char .v3-dot.below { bottom: -5px; transform: translateX(-50%); }
+.v3-note-char .v3-dot.below2 { bottom: -11px; }
+.v3-note-char:hover {
+  background: var(--accent-dim);
+  border-radius: 2px;
+}
+.v3-note-char.selected {
+  background: #60a5fa;
+  color: #fff;
+  border-radius: 2px;
+}
+.v3-note-plain {
+  display: inline;
+  min-width: 1.2ch;
+  text-align: center;
+}
+/* 純文字態點選目標閃回（caret 命中反饋） */
+.v3-input-note.v3-target-flash {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+  border-radius: 2px;
+}
+
+/* ===== SoLa321 視覺化樂譜渲染器（取代原 JSON textarea）===== */
+/* 編輯工具列（SoLa321 手冊功能鍵） */
+.sola321-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: #131a24;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.sola321-tb-label { color: var(--text-dim); font-size: 11px; margin-right: 2px; }
+.sola321-tb-sep { width: 1px; height: 18px; background: var(--line); margin: 0 6px; }
+.sola321-tb-btn {
+  min-width: 30px;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  background: #1a212b;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.sola321-tb-btn:hover { background: #232c38; border-color: var(--line); }
+.sola321-tb-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #cfe4ff;
+  font-weight: 600;
+}
+
+.sola321-score-container {
+  flex: 1 1 auto;
+  min-height: 280px;
+  overflow: auto;
+  background: #fff;  /* 白底樂譜紙 */
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 14px 16px;
+  font-family: var(--font);
+  color: var(--paper-text);
+}
+
+/* 樂譜標題區（無外框、無底色；上方歌名可縮放、左邊 1=C 4/4 ♩=80、右邊 作詞/作曲） */
+.sola321-score-header {
+  text-align: center;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: none;
+}
+.sola321-title {
+  font-size: calc(22px * var(--sola-title-scale, var(--sola-font-scale, 1)));
+  font-weight: 700;
+  color: var(--paper-text);
+  margin: 0 0 6px;
+}
+.sola321-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  width: 100%;
+  padding: 2px 4px 0;
+  box-sizing: border-box;
+}
+.sola321-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #222;
+  margin: 0;
+}
+.sola321-meta span { display: inline-flex; align-items: center; gap: 2px; }
+.sola321-subtitle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #333;
+  margin: 0;
+}
+.sola321-subtitle span { font-weight: 600; color: #222; }
+.sola321-score-header input,
+.sola321-title-input,
+.sola321-meta-input,
+.sola321-subtitle input,
+.sola321-meta input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: inherit;
+  color: var(--paper-text);
+  padding: 1px 2px;
+}
+.sola321-title-input {
+  font-size: calc(22px * var(--sola-title-scale, var(--sola-font-scale, 1))) !important;
+  font-weight: 700;
+  text-align: center;
+  width: 75%;
+  min-width: 200px;
+  line-height: 1.25;
+}
+.sola321-title-input:focus {
+  background: rgba(2, 132, 199, 0.05) !important;
+  border-radius: 4px;
+}
+.sola321-subtitle input {
+  font-size: 13.5px;
+  color: #222;
+  width: 96px;
+  text-align: left;
+}
+.sola321-meta input {
+  width: 44px;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* 樂譜主體：多行，每行多個小節 */
+.sola321-score-body { display: flex; flex-direction: column; gap: 14px; }
+.sola321-system { display: flex; flex-wrap: wrap; gap: 0; align-items: stretch; }
+
+/* 單一小節：無邊框，小節間以小節線（barline）分隔 */
+.sola321-measure {
+  display: flex;
+  flex-direction: column;
+  min-width: 130px;
+  flex: 1 1 0;
+  padding: 4px 10px;
+  position: relative;
+}
+/* 小節線：畫在兩小節之間（非末節的右側，垂直線）已停用，改由與音符等高之小節線元件繪製 */
+.sola321-measure:not(:last-child)::after {
+  display: none !important;
+  content: none !important;
+}
+.sola321-measure.sola321-end-bar:not(:last-child)::after { display: none !important; }
+
+/* 小節線：獨立元素 .sola321-barline，高度＝音符行高（24px），定位在 slot-track 右緣 */
+.sola321-measure {
+  position: relative;
+}
+.sola321-barline {
+  position: absolute;
+  right: 0;
+  width: 1.5px !important;
+  height: calc(16px * var(--sola-font-scale, 1)) !important;
+  background: #1e293b !important;
+  pointer-events: none;
+  z-index: 10;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.sola321-barline.sola321-end-bar {
+  width: 4px !important;
+  right: -2px;
+}
+.sola321-barline::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: inherit;
+}
+
+/* 小節號 */
+.sola321-measure-num {
+  font-size: 10px;
+  color: #999;
+  margin-bottom: 2px;
+  text-align: left;
+}
+.sola321-measure-num input {
+  width: 34px; border: none;
+  font-size: 10px; color: #999; background: transparent; text-align: left;
+}
+
+/* 小節 slot 軌道 */
+.sola321-slot-track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+  min-width: 0;
+}
+.sola321-slot {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  box-sizing: border-box;
+}
+.sola321-spacing-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.sola321-slot:hover .sola321-spacing-handle { opacity: 1; background: rgba(0,0,0,.12); }
+
+/* Score Studio 和弦槽：透明底、無框，只顯示白底指法圖＋和弦名 */
+.sola321-chord-slot-score {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 72px;
+  margin-bottom: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  position: relative;
+}
+.sola321-chord-slot-score .chord-diagram-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.sola321-chord-slot-score .chord-fallback {
+  font-size: 11px;
+  color: #999;
+  text-align: center;
+  padding: 2px 4px;
+}
+
+/* 和弦（放在簡譜上方，充足高度容納指法圖，避免覆蓋音符） */
+.sola321-chord-row {
+  display: flex;
+  justify-content: center;
+  min-height: 78px !important;
+  height: auto;
+  margin-bottom: 2px;
+  position: relative;
+}
+.sola321-score-body .v3-chord-diagram,
+.sola321-score-body .v3-chord-slot-pos {
+  display: block;
+}
+.sola321-score-body .v3-chord-slot-pos {
+  display: none !important;
+}
+.sola321-chord-row .v3-chord-slots:not(:empty) + .sola321-chord-text {
+  display: none !important;
+}
+.sola321-chord-row .v3-chord-slots:empty + .sola321-chord-text,
+.sola321-chord-row:not(:has(.v3-chord-slot)) .sola321-chord-text {
+  display: flex !important;
+  justify-content: center;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--paper-text);
+  line-height: 1.4;
+  padding: 2px 0;
+}
+.sola321-chord-input {
+  width: 64px;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: transparent;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: #c00;
+  padding: 1px 4px;
+}
+.sola321-chord-input:hover { border-color: #f3b3b3; }
+.sola321-chord-input:focus { border-color: var(--accent); outline: none; background: #fff5f5; }
+
+/* 簡譜數字行（含高低音點；每個音為可編輯輸入框） */
+.sola321-note-row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.8;
+  min-height: 34px;
+  position: relative;
+  flex-wrap: wrap;
+}
+.sola321-note-char {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+.sola321-digit { position: relative; z-index: 2; }
+.sola321-note-input {
+  width: 22px;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: transparent;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--paper-text);
+  padding: 1px 0;
+  position: relative;
+  z-index: 2;
+}
+.sola321-note-input:hover { border-color: #ccc; }
+.sola321-note-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: #f0f6ff;
+  font-weight: 700;
+}
+/* v3.05.00：游標橘框移除——定位改以 input caret 閃爍為唯一視覺錨點；
+   class 仍保留供 JS 追蹤游標位置 */
+.sola321-note-char.sola321-cursor .sola321-note-input {
+  background: transparent;
+}
+.sola321-note-char.sola321-cursor .sola321-note-input::after {
+  content: none;
+}
+.sola321-dots-above { display: flex; flex-direction: column; gap: 1px; height: 12px; justify-content: flex-end; }
+.sola321-dots-below { display: flex; flex-direction: column; gap: 1px; height: 12px; justify-content: flex-start; }
+.sola321-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--paper-text); }
+
+/* 歌詞行（支援多行：verse 1, verse 2...；每個音節為可編輯輸入框） */
+.sola321-lyric-rows { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.sola321-lyric-row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1.4;
+  color: #333;
+  flex-wrap: wrap;
+}
+.sola321-lyric-input {
+  width: 22px;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: transparent;
+  text-align: center;
+  font-size: 12px;
+  color: #333;
+  padding: 0 1px;
+}
+.sola321-lyric-input:hover { border-color: #b3d0f3; }
+.sola321-lyric-input:focus { border-color: var(--accent); outline: none; background: #eef5ff; }
+
+/* 空白提示 */
+.sola321-score-empty { text-align: center; color: #888; padding: 60px 20px; font-size: 14px; }
+
+/* 拍數未填滿的警告（小節底邊紅線） */
+.sola321-measure.sola321-measure-short::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: #e53e3e;
+}
+
+/* 橫向捲動提示 */
+.sola321-score-container::-webkit-scrollbar { height: 8px; }
+.sola321-score-container::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+
+/* ============================================================
+ * Phase 6: Editor 樣式
+ * ============================================================ */
+#editor-container {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ccc;
+}
+
+#editor-container .toolbar {
+  margin-bottom: 20px;
+}
+
+#editor-container .toolbar button {
+  margin-right: 10px;
+  padding: 5px 10px;
+}
+
+#editor-container .toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#editor-container .canvas {
+  border: 1px solid #ccc;
+  padding: 20px;
+  margin-bottom: 20px;
+  background: #fff;
+}
+
+#editor-container .event-info {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 20px;
+  background: #f5f5f5;
+  padding: 10px;
+}
+
+#editor-container .status-bar {
+  font-size: 12px;
+  color: #666;
+  padding: 5px 10px;
+  background: #e0e0e0;
+}
+
+/* ============================================================
+ * Phase 6B-2 — Score Studio 唯讀混合預覽 Viewer（SSMV）
+ * 獨立 container #score-studio-mixed-viewer；不取代 Legacy #sola321-score。
+ * 唯讀：無 input/button/textarea/select/contenteditable/draggable 於 item 內。
+ * ============================================================ */
+
+/* 模式切換控制（header 內，不破壞既有工具列） */
+.ssmv-toggle {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 14px;
+  vertical-align: middle;
+}
+.ssmv-btn {
+  font-size: 11px;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  background: #232c38;
+  color: var(--text-dim);
+  border-radius: 5px;
+  cursor: pointer;
+}
+.ssmv-btn.ssmv-active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #cfe4ff;
+  font-weight: 600;
+}
+.ssmv-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Phase 6B-3D: Active Note 安全摘要（唯讀，不顯示完整樂譜內容） */
+.ssmv-active-note-diag {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 6px 10px;
+  background: #1a1a1a;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+/* Timeline 容器 */
+.sola321-score-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+}
+
+.sola321-system-timeline {
+  display: flex;
+  flex-direction: row;
+  overflow-x: auto;
+  min-height: 160px;
+  position: relative;
+}
+
+/* 單一小節（Timeline 模式） */
+.sola321-measure-timeline {
+  position: relative;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line-soft);
+  margin-right: 8px;
+  overflow: visible;
+}
+
+.sola321-measure-timeline.sola321-end-bar {
+  border-right: 2px solid var(--text);
+}
+
+/* 小節號 */
+.sola321-measure-num-timeline {
+  position: absolute;
+  top: -18px;
+  left: 0;
+  font-size: 10px;
+  color: var(--text-dim);
+  z-index: 10;
+}
+
+.sola321-measure-num-timeline input {
+  width: 24px;
+  text-align: center;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+/* 和弦軌道 */
+.sola321-chord-track {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  pointer-events: none;
+}
+
+.sola321-chord-event {
+  position: absolute;
+  font-size: 16px;
+  font-weight: bold;
+  color: #d32f2f;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.sola321-chord-event:hover {
+  background: rgba(211, 47, 47, 0.2);
+}
+
+.sola321-chord-event.sola321-cursor {
+  background: rgba(211, 47, 47, 0.3);
+  outline: 1px solid #d32f2f;
+}
+
+/* 旋律軌道 */
+.sola321-melody-track {
+  position: absolute;
+  top: 68px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  pointer-events: none;
+}
+
+.sola321-note-char-timeline {
+  position: absolute;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 20px;
+  font-weight: 500;
+  color: #1976d2;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: background 0.15s;
+}
+
+.sola321-note-char-timeline:hover {
+  background: rgba(25, 118, 210, 0.15);
+}
+
+.sola321-note-char-timeline.sola321-cursor {
+  background: rgba(25, 118, 210, 0.25);
+  outline: 1px solid #1976d2;
+}
+
+/* 歌詞軌道 */
+.sola321-lyric-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 24px;
+  pointer-events: none;
+}
+
+.sola321-lyric-syl-timeline {
+  position: absolute;
+  font-size: 14px;
+  color: #388e3c;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.sola321-lyric-syl-timeline:hover {
+  background: rgba(56, 142, 60, 0.15);
+}
+
+.sola321-lyric-syl-timeline.sola321-cursor {
+  background: rgba(56, 142, 60, 0.25);
+  outline: 1px solid #388e3c;
+}
+
+/* 小節線（高度與音符等高 16px） */
+.sola321-barline-timeline {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: calc(16px * var(--sola-font-scale, 1)) !important;
+  width: 1.5px;
+  background: var(--text);
+}
+
+.sola321-barline-thin-timeline {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: calc(16px * var(--sola-font-scale, 1)) !important;
+  width: 1px;
+  background: var(--text-dim);
+}
+
+/* 連線（beam） */
+.sola321-beams-timeline {
+  position: absolute;
+  top: 68px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  pointer-events: none;
+}
+
+.sola321-beam-timeline {
+  position: absolute;
+  height: 3px;
+  background: #1976d2;
+  border-radius: 2px;
+}
+
+/* 結構記號 */
+.sola321-mark-inline {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--text);
+  margin-left: 4px;
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sola321-mark-inline:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 切換至 Timeline 模式時的容器樣式 */
+.sola321-score-body.sola321-use-timeline {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* 短小節標記 */
+.sola321-measure-timeline.sola321-measure-short {
+  opacity: 0.7;
+}
+
+.sola321-measure-timeline.sola321-measure-short::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: #e53e3e;
+}
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(0,0,0,0.18);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 8px;
+  line-height: 1.5;
+}
+.ssmv-active-note-diag .ssmn-diag-line { white-space: nowrap; }
+/* Active Note 模式下 note input 轉為只讀（視覺提示；實際只讀由 JS readOnly 控制） */
+.sola321-note-input.ssmv-note-input-active {
+  background: rgba(58,158,90,0.12);
+  color: #bfe6c9;
+  outline: 1px dashed rgba(58,158,90,0.55);
+}
+
+/* Viewer 主 container（白底，與 Legacy 樂譜紙一致） */
+#score-studio-mixed-viewer {
+  flex: 1 1 auto;
+  min-height: 280px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  padding: 20px 24px;
+  color: var(--paper-text);
+}
+#score-studio-mixed-viewer[hidden] { display: none; }
+
+/* 頂部 Summary（只含統計四項；不含歌名／歌詞／來源路徑） */
+.ssmv-summary {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--paper-line);
+}
+.ssmv-summary-row {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: #555;
+}
+.ssmv-summary-row .ssmv-k { color: #888; }
+.ssmv-summary-row .ssmv-v { font-size: 16px; font-weight: 600; color: var(--paper-text); }
+
+/* 安全錯誤訊息（state3.doc 快照不一致時顯示，停用渲染） */
+.ssmv-safe-error {
+  padding: 14px;
+  border: 1px solid #e53e3e;
+  background: #fff5f5;
+  color: #9b2c2c;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+/* 單一 item：SVG / diagnostic 兩種 kind 共存 */
+.ssmv-item {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--paper-line);
+}
+.ssmv-item-head {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 6px;
+}
+.ssmv-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 600;
+}
+.ssmv-badge-ok { background: #e6f7ee; color: #22543d; border: 1px solid #9ae6b4; }
+.ssmv-svg-body svg { display: block; }
+
+/* diagnostic card：唯讀，只含 Measure 號 / 狀態 / reason codes / warning codes */
+.ssmv-diag-card {
+  border: 1px solid var(--line-soft);
+  background: #f7f8fa;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.ssmv-diag-title { font-weight: 600; color: var(--paper-text); margin-bottom: 4px; }
+.ssmv-diag-status { color: #9b2c2c; margin-bottom: 4px; }
+.ssmv-diag-reasons, .ssmv-diag-warns { color: #555; }
+.ssmv-diag-warns { margin-top: 2px; font-size: 11px; color: #888; }
+
+/* 未載入專案時 viewer 提示 */
+.ssmv-empty-hint {
+  padding: 20px;
+  color: #888;
+  font-size: 13px;
+  text-align: center;
+}
+
+
+/* ==========================================================
+   v3.05.07: 編輯按鈕預設隱藏，hover 時顯示
+   ========================================================== */
+.sola321-note-add,
+.sola321-lyric-add,
+.v3-chord-slot-add,
+.v3-chord-slot-del {
+  display: none;
+}
+
+.sola321-measure:hover .sola321-note-add,
+.sola321-measure:hover .sola321-lyric-add,
+.sola321-measure:hover .v3-chord-slot-add,
+.sola321-measure:hover .v3-chord-slot-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  color: var(--text);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.sola321-measure:hover .sola321-note-add:hover,
+.sola321-measure:hover .sola321-lyric-add:hover,
+.sola321-measure:hover .v3-chord-slot-add:hover,
+.sola321-measure:hover .v3-chord-slot-del:hover {
+  opacity: 1;
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+
+/* === ScoreForge Surgical Patch === */
+#sola321-score .sola321-measure, .sola321-measure { border-right: none !important; }
+.sola321-note-row .sola321-barline {
+    display: inline-block !important;
+    width: 1px !important;
+    /* height 32px removed */
+    background-color: #333 !important;
+    vertical-align: middle !important;
+    margin-left: 8px !important;
+}
+/* 和弦槽預設走 flex flow（簡譜格線 #v3-rows：和弦層在音符層上方，三層獨立不重疊）；
+   「絕對定位 + 中移」僅加回給 Score Studio 的 chord-row（依 tick 定位），避免污染簡譜格線。 */
+.v3-chord-slot {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}
+.sola321-chord-row .v3-chord-slot,
+#sola321-score .v3-chord-slot {
+    position: absolute !important;
+    transform: translateX(-50%) !important;
+    cursor: pointer !important;
+}
+.v3-chord-slot-pos { display: none !important; }
+
+
+/* === ScoreForge V4 Precision Patch === */
+#sola321-score .sola321-measure,
+.sola321-measure,
+.sola321-measure-inner,
+.sola321-col,
+.measure-box,
+#sola321-score td,
+.sola321-table td {
+    border-right: none !important;
+    border-left: none !important;
+    border-top: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+#sola321-score .sola321-measure::after,
+#sola321-score .sola321-measure::before,
+.sola321-measure-divider {
+    display: none !important;
+    content: none !important;
+}
+.sola321-note-row .sola321-barline {
+    display: inline-block !important;
+    width: 1.5px !important;
+    height: calc(16px * var(--sola-font-scale, 1)) !important;
+    background-color: #000000 !important;
+    vertical-align: 0px !important;
+    margin-left: 8px !important;
+    margin-right: 2px !important;
+}
+.sola321-chord-row {
+    position: relative !important;
+    min-height: 78px !important;
+    display: block !important;
+    text-align: left !important;
+}
+.v3-chord-slot {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    cursor: pointer !important;
+}
+.v3-chord-diagram {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 48px !important;
+    height: 48px !important;
+}
+.v3-chord-diagram svg,
+.v3-chord-diagram img {
+    width: 48px !important;
+    height: 48px !important;
+    max-width: 48px !important;
+    max-height: 48px !important;
+    object-fit: contain !important;
+}
+.v3-chord-name {
+    font-size: 13px !important;
+    font-weight: bold !important;
+    color: #1a1a1a !important;
+    margin-top: 1px !important;
+    line-height: 1.1 !important;
+}
+.v3-chord-slot-pos {
+    display: none !important;
+}
+
+/* === ScoreForge v3.05.08 Phase 6C：恢復和弦指法圖 ===
+   V4 patch 把 .v3-chord-diagram 鎖成 36×38，但 compact img 寬 52px 會溢出；
+   此處放大框、收合 img、置中名稱。純新增，不改舊規則（可整段刪除回復）。 */
+.v3-chord-diagram {
+    width: 54px !important;
+    min-height: 40px !important;
+    height: auto !important;
+    max-height: 120px !important;
+    overflow: hidden !important;
+    cursor: pointer !important;
+}
+.v3-chord-diagram .chord-diagram-img-wrap { display: block; width: 100%; }
+.v3-chord-diagram .chord-diagram-img {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+    margin: 0 auto;
+}
+.v3-chord-diagram .chord-diagram-missing { font-size: 10px; color: #999; text-align: center; padding: 2px 0; }
+.v3-chord-slot { align-items: center !important; gap: 2px; }
+.v3-chord-name {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #1a1a1a !important;
+    margin-top: 1px !important;
+    line-height: 1.1 !important;
+    text-align: center;
+    max-width: 54px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ===== Score Studio 頂部列與自訂下拉式工具列（依附圖規格設計）===== */
+#sola321-pane {
+  background: #f1f5f9;
+  color: #1e293b;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.sola321-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 2px 8px;
+  margin-bottom: 4px;
+  background: transparent;
+  border-bottom: none;
+}
+.sola321-top-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+}
+.sola321-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.ss-top-btn,
+#sola321-pane .ss-top-btn.sola321-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px;
+  font-family: var(--font, "Microsoft JhengHei", sans-serif);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, box-shadow 0.12s;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.ss-top-btn:hover,
+#sola321-pane .ss-top-btn.sola321-tb-btn:hover {
+  background: #f8fafc;
+  border-color: #475569;
+}
+.ss-top-btn:active,
+#sola321-pane .ss-top-btn.sola321-tb-btn:active {
+  background: #e2e8f0;
+}
+
+/* 工具列主容器（白底圓角卡片） */
+#sola321-pane .sola321-toolbar {
+  position: relative;
+  z-index: 100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  font-family: var(--font, "Microsoft JhengHei", sans-serif);
+  font-size: 13px;
+  color: #1e293b;
+}
+
+/* 左側「歌詞吸附」膠囊群組 */
+.ss-snap-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 8px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+}
+.ss-snap-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+.ss-snap-btn {
+  height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s ease;
+}
+.ss-snap-btn:hover {
+  background: #f1f5f9;
+  border-color: #64748b;
+}
+.ss-snap-btn.active {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+.ss-snap-align {
+  margin-left: 2px;
+}
+
+/* 4 個核心下拉選單按鈕（段落 ▾、小節 ▾、音符 ▾、符號 ▾） */
+.ss-dd-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.ss-dd-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 11px;
+  font-family: var(--font, "Microsoft JhengHei", sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1.5px solid #334155;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.ss-dd-trigger:hover {
+  background: #f1f5f9;
+}
+.ss-dd-wrap.open .ss-dd-trigger {
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #0284c7;
+}
+
+/* 彈出式下拉選單面板（依附圖：白底、深色細邊框、群組小標題、分隔線、危險紅字） */
+.ss-dd-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 196px;
+  padding: 6px 0;
+  background: #ffffff;
+  border: 1.5px solid #1e293b;
+  border-radius: 6px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.18);
+  z-index: 2500;
+}
+.ss-dd-wrap.open .ss-dd-menu {
+  display: block;
+}
+.ss-dd-head {
+  padding: 4px 14px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+.ss-dd-sep {
+  height: 1px;
+  margin: 5px 0;
+  background: #e2e8f0;
+}
+.ss-dd-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 7px 14px;
+  border: none;
+  background: transparent;
+  font-family: var(--font, "Microsoft JhengHei", sans-serif);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s ease;
+}
+.ss-dd-item:hover {
+  background: #f1f5f9;
+}
+.ss-dd-item.active {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+.ss-dd-item.is-danger,
+.ss-dd-item.ss-dd-danger {
+  color: #dc2626;
+}
+.ss-dd-item.is-danger:hover,
+.ss-dd-item.ss-dd-danger:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+/* 字體大小控制群組 */
+.ss-font-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+}
+.ss-font-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  margin-right: 1px;
+  white-space: nowrap;
+}
+.ss-ctrl-btn,
+.ss-sq-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s;
+}
+.ss-ctrl-btn:hover,
+.ss-sq-btn:hover {
+  background: #f1f5f9;
+  border-color: #475569;
+}
+.ss-ctrl-reset,
+.ss-reset-btn {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+.ss-font-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 32px;
+  text-align: center;
+}
+.ss-font-slider { display: none !important;
+  width: 72px;
+  height: 5px;
+  accent-color: #0284c7;
+  cursor: pointer;
+}
+
+/* 右側「🔍 工作倍率」控制群組 */
+.ss-zoom-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 5px 2px 8px;
+  background: #ffffff;
+  border: 1px solid #94a3b8;
+  border-radius: 7px;
+  margin-left: auto;
+}
+.ss-zoom-badge,
+.ss-zoom-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  white-space: nowrap;
+}
+.ss-zoom-val {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 36px;
+  text-align: center;
+}
+
+/* 狀態提示橫幅（空內容時自動隱藏，不佔用表頭空間） */
+#sola321-pane .sola321-status-bar {
+  margin: 0 0 8px 0 !important;
+  padding: 6px 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  color: #0369a1 !important;
+  background: #e0f2fe !important;
+  border: 1px solid #bae6fd !important;
+  border-radius: 6px !important;
+}
+#sola321-pane .sola321-status-bar:empty {
+  display: none !important;
+}
+
+/* ===== Score Studio 直式編輯頁面（固定軌道、共用單一小節線無間隔、垂直八度點、跨音符連音/圓滑/三連音弧線）===== */
+.sola321-score-body.sola321-use-vertical { gap: 0; overflow-x: auto; }
+.sola321-vertical-body {
+  background: #fff;
+  color: #1a1a1a;
+  font-family: var(--mono, monospace);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px 0;
+  padding: 8px 2px;
+  align-items: flex-start;
+  zoom: var(--sola-work-zoom, 1);
+}
+.sola321-vmeasure,
+.sola321-vmeasure:hover,
+.sola321-vmeasure.sola321-measure-target,
+.sola321-vmeasure.sola321-short,
+.sola321-vmeasure.sola321-v-end {
+  flex: 1 1 0%;
+  width: max-content;
+  min-width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+  margin: 0;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.sola321-v-rowbreak {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+/* 固定軌道 ①：小節頭（22px 固定高度）+ 加深小節號與段落記號（前奏、主歌、副歌...）色調 */
+.sola321-v-measurehead {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  gap: 5px;
+  font-size: 12px;
+  color: #1e293b;
+  height: 22px;
+  min-height: 22px;
+  max-height: 22px;
+  padding-left: 4px;
+  box-sizing: border-box;
+}
+#sola321-score .sola321-v-mnum,
+.sola321-v-mnum {
+  font-weight: 700;
+  font-size: 11px;
+  color: #334155 !important;
+  margin-right: 2px;
+  user-select: none;
+}
+#sola321-score .sola321-v-section,
+.sola321-v-section {
+  font-size: 12px;
+  color: #881337 !important;
+  font-weight: 700 !important;
+  background: rgba(136, 19, 55, 0.08);
+  border: 1px solid rgba(136, 19, 55, 0.28);
+  padding: 0 5px;
+  border-radius: 4px;
+}
+.sola321-v-marks {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  align-items: center;
+}
+#sola321-score .sola321-mark-inline {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  background: rgba(15, 23, 42, 0.09) !important;
+  border: 1px solid rgba(15, 23, 42, 0.28) !important;
+  padding: 0 6px !important;
+  line-height: 18px !important;
+  border-radius: 4px !important;
+}
+#sola321-score .sola321-mark-inline:hover {
+  color: #b91c1c !important;
+  background: rgba(220, 38, 38, 0.12) !important;
+  border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+/* 固定軌道 ②：和弦車道（88px 固定高度，確保和弦名在上方 + 48px正方形指法圖，絕不覆蓋音符） */
+.sola321-v-chordlane {
+  position: relative;
+  display: block;
+  height: 88px;
+  min-height: 88px;
+  max-height: 88px;
+  box-sizing: border-box;
+  padding: 0;
+  cursor: text;
+}
+.sola321-v-chords-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 88px;
+  min-height: 88px;
+  max-height: 88px;
+  box-sizing: border-box;
+}
+.sola321-v-chord {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 1px;
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  border: none;
+  background: transparent;
+  z-index: 2;
+}
+.sola321-v-chord:active,
+.sola321-v-chord.is-dragging {
+  cursor: grabbing;
+  z-index: 10;
+  background: rgba(25, 118, 210, 0.06);
+}
+.sola321-v-chord:focus {
+  outline: 1px dashed rgba(25, 118, 210, 0.5);
+  outline-offset: 1px;
+}
+.sola321-v-chord .chord-diagram-img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+}
+.sola321-v-chord .chord-diagram-img {
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  pointer-events: none;
+}
+.sola321-v-chord .v3-chord-name {
+  display: block !important;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+.sola321-v-chord-text { font-family: Consolas, "SFMono-Regular", monospace; font-size: calc(13px * var(--sola-font-scale, 1)); font-weight: 700; color: #1a1a1a; padding: 2px 3px; white-space: nowrap; }
+.sola321-v-chord-del {
+  position: absolute; top: -4px; right: -4px;
+  width: 15px; height: 15px; line-height: 13px;
+  font-size: 11px; font-weight: 700;
+  border-radius: 50%; border: 1px solid #94a3b8;
+  background: #fff; color: #475569;
+  cursor: pointer; padding: 0; display: none;
+  z-index: 5;
+}
+.sola321-v-chord:hover .sola321-v-chord-del { display: inline-block; }
+
+.sola321-v-chord-editor {
+  position: absolute;
+  left: 4px;
+  bottom: 2px;
+  width: auto;
+  max-width: calc(100% - 8px);
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 1px 2px;
+  white-space: nowrap;
+  z-index: 3;
+}
+.sola321-v-chord-editor::placeholder {
+  color: transparent;
+}
+.sola321-v-chordlane:hover .sola321-v-chord-editor::placeholder,
+.sola321-v-chord-editor:focus::placeholder {
+  color: #bbb;
+  font-weight: 400;
+}
+.sola321-v-chordlane.has-chords:not(:focus-within) .sola321-v-chord-editor {
+  opacity: 0;
+  min-width: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none;
+  padding: 0;
+  overflow: hidden;
+  display: none !important;
+}
+
+/* 固定軌道 ③：簡譜音符車道（42px 固定高度 + 相鄰小節共用單一小節線無間隔 + 依拍號與時值比例定位音符 + 容納上下弧線與垂直雙八度點） */
+.sola321-v-notelane {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 42px;
+  min-height: 42px;
+  max-height: 42px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 100%;
+  padding: 0;
+  cursor: text;
+  white-space: nowrap;
+}
+.sola321-v-barline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.5px;
+  height: calc(16px * var(--sola-font-scale, 1)) !important;
+  background-color: #1e293b;
+  align-self: center;
+  pointer-events: none;
+}
+.sola321-v-barline-front {
+  margin-right: 5px;
+}
+/* 同一列相鄰小節共用單一小節線：非列首小節隱藏左端一般小節線，直接共用左鄰小節的右端小節線 */
+.sola321-vmeasure:not(.is-row-start) .sola321-v-barline-front:not(.is-repeat-start) {
+  display: none;
+}
+.sola321-vmeasure:not(.is-row-start) .sola321-v-note-display {
+  padding-left: 8px;
+}
+.sola321-vmeasure:not(.is-row-start) .sola321-v-note-editor {
+  padding-left: 8px;
+}
+.sola321-vmeasure.hide-back-barline .sola321-v-barline-back {
+  display: none;
+}
+.sola321-v-barline-back {
+  margin-left: auto;
+  padding-left: 0;
+}
+.sola321-vmeasure.sola321-v-end .sola321-v-barline-back,
+.sola321-v-barline.is-double-bar {
+  width: 5px;
+  background-color: transparent;
+  border-left: 1.5px solid #1e293b;
+  border-right: 2.5px solid #1e293b;
+  box-sizing: border-box;
+}
+.sola321-v-barline.is-repeat-start {
+  width: 6px;
+  background-color: transparent;
+  border-left: 2.5px solid #1e293b;
+  border-right: 1.5px solid #1e293b;
+  box-sizing: border-box;
+  margin-right: 9px;
+}
+.sola321-v-barline.is-repeat-start::after {
+  content: ':';
+  position: absolute;
+  right: -6px;
+  top: -1px;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: calc(16px * var(--sola-font-scale, 1));
+  color: #1e293b;
+}
+.sola321-v-barline.is-repeat-end {
+  width: 6px;
+  background-color: transparent;
+  border-left: 1.5px solid #1e293b;
+  border-right: 2.5px solid #1e293b;
+  box-sizing: border-box;
+  margin-left: auto;
+}
+.sola321-v-barline.is-repeat-end::before {
+  content: ':';
+  position: absolute;
+  left: -6px;
+  top: -1px;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: calc(16px * var(--sola-font-scale, 1));
+  color: #1e293b;
+}
+.sola321-v-note-display {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding-left: 6px;
+  padding-right: 4px;
+  box-sizing: border-box;
+}
+.sola321-v-notelane.is-editing .sola321-v-note-display {
+  visibility: hidden;
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 100%;
+  pointer-events: none;
+}
+.sola321-v-notelane.is-empty .sola321-v-note-display {
+  display: none;
+}
+.sola321-v-note-editor {
+  width: auto;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: "Segoe UI Symbol", "Microsoft YaHei", Consolas, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0px;
+  color: #1a1a1a;
+  padding: 1px 6px 1px 6px;
+  white-space: pre;
+}
+.sola321-v-note-editor::placeholder {
+  color: transparent;
+}
+.sola321-v-notelane:hover .sola321-v-note-editor::placeholder,
+.sola321-v-note-editor:focus::placeholder {
+  color: #bbb;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+.sola321-v-notelane:not(.is-empty):not(.is-editing) .sola321-v-note-editor {
+  opacity: 0;
+  position: absolute;
+  min-width: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* 音符間空白鍵產生的間距元素與未填滿拍數佔位元素 */
+.sola321-v-space {
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+}
+.sola321-v-beat-rest-pad {
+  display: inline-block;
+  min-width: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+/* 音符 Token：依拍數比例 flex 分配寬度，左端起點對齊該拍座標（對應 1.0, 2.6, 5.1, 7.6 節拍落點） */
+.sola321-v-token {
+  position: relative;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  flex: 1 0 0%;
+  min-width: 16px;
+  padding: 1px 1px;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.sola321-v-core {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.sola321-v-pitch-row {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+}
+.sola321-v-acc {
+  font-size: calc(12px * var(--sola-font-scale, 1));
+  font-weight: 700;
+  color: #111;
+  line-height: 1;
+  margin-right: 0.5px;
+  align-self: center;
+}
+.sola321-v-augdot {
+  font-size: calc(15px * var(--sola-font-scale, 1));
+  font-weight: 700;
+  color: #111;
+  line-height: 1;
+  margin-left: 1.5px;
+  align-self: center;
+}
+.sola321-v-token.sola321-cursor .sola321-v-core {
+  background: rgba(25, 118, 210, 0.14);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+.sola321-v-token.sola321-cursor .sola321-v-digit {
+  color: #1976d2;
+}
+.sola321-v-token.sola321-selected .sola321-v-core {
+  background: rgba(2, 132, 199, 0.22);
+  box-shadow: 0 0 0 1px rgba(2, 132, 199, 0.45);
+  border-radius: 3px;
+}
+/* 2個高8度與2個低8度的點：上下垂直排列，嚴格置中於數字正上方與正下方 */
+.sola321-v-dots {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5px;
+  min-height: 7px;
+  width: 100%;
+}
+.sola321-v-dots-above {
+  justify-content: flex-end;
+  margin-bottom: 1px;
+}
+.sola321-v-dots-below {
+  justify-content: flex-start;
+  margin-top: 1px;
+}
+.sola321-v-digit {
+  font-size: calc(16px * var(--sola-font-scale, 1));
+  line-height: 1;
+  color: #111;
+  font-weight: 600;
+  text-align: center;
+}
+.sola321-v-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #111;
+  display: block;
+}
+.sola321-v-ulines {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1.5px;
+  min-height: 6px;
+  margin-top: 1px;
+  width: 100%;
+}
+.sola321-v-uline {
+  display: block;
+  width: 100%;
+  min-width: 11px;
+  height: 1.5px;
+  background: #111;
+}
+.sola321-v-token.sola321-v-dash .sola321-v-digit { color: #555; font-weight: 400; }
+
+/* 跨音符連音線（上方）、圓滑線（下方）、三連音線與同拍連音減時線 SVG 覆蓋層 */
+.sola321-v-arcs-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* 固定軌道 ④：歌詞車道（自動對準上方音符節拍座標、保留空白鍵位移、多段歌詞半透明 ＋ 與 × 刪除整行按鈕） */
+.sola321-v-lyriclane {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 22px;
+  width: 100%;
+  min-width: 100%;
+  padding: 1px 0 1px 0;
+  box-sizing: border-box;
+}
+.sola321-v-lyric-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  min-height: 20px;
+  white-space: nowrap;
+  cursor: text;
+}
+.sola321-v-lyric-display {
+  position: relative;
+  display: block;
+  width: 100%;
+  flex: 1 1 100%;
+  min-height: 20px;
+  height: 20px;
+}
+.sola321-v-lyric-display.is-free-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 5px;
+  width: auto;
+  flex: 0 1 auto;
+}
+.sola321-v-lyric-syl {
+  position: absolute;
+  top: 1px;
+  font-family: var(--font, sans-serif);
+  font-size: calc(13px * var(--sola-font-scale, 1));
+  line-height: 1.35;
+  color: #111;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.sola321-v-lyric-display.is-free-mode .sola321-v-lyric-syl {
+  position: relative;
+  top: 0;
+}
+.sola321-v-lyric-row:not(.has-lyrics) .sola321-v-lyric-display,
+.sola321-v-lyric-row.is-editing .sola321-v-lyric-display {
+  display: none;
+}
+.sola321-v-lyric-editor {
+  flex: 0 0 auto;
+  width: auto;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: var(--font, sans-serif);
+  font-size: calc(13px * var(--sola-font-scale, 1));
+  line-height: 1.4;
+  color: #111;
+  padding: 1px 1px 1px 5px;
+  white-space: pre;
+}
+.sola321-v-lyric-row.has-lyrics:not(.is-editing) .sola321-v-lyric-editor {
+  opacity: 0;
+  position: absolute;
+  min-width: 0 !important;
+  width: 1px !important;
+  height: 1px !important;
+  pointer-events: none;
+  padding: 0;
+  overflow: hidden;
+}
+.sola321-v-lyric-editor::placeholder {
+  color: transparent;
+}
+.sola321-v-lyriclane:hover .sola321-v-lyric-editor::placeholder,
+.sola321-v-lyric-editor:focus::placeholder {
+  color: #bbb;
+}
+/* 刪除鍵 × 與新增鍵 ＋ 採絕對定位浮層（不佔用歌詞列 flex 寬度，徹底消除第 2/3/4 段歌詞最後一字往前退一格的問題） */
+.sola321-v-lyric-add,
+.sola321-v-lyric-del {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  margin: 0;
+  border: none !important;
+  outline: none !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  color: #555;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+}
+.sola321-v-lyric-del {
+  right: 17px;
+}
+.sola321-v-lyric-add {
+  right: 1px;
+}
+.sola321-v-lyric-del:last-child {
+  right: 1px;
+}
+.sola321-v-lyric-row:hover .sola321-v-lyric-add,
+.sola321-v-lyric-row:hover .sola321-v-lyric-del,
+.sola321-v-lyric-row.is-editing .sola321-v-lyric-add,
+.sola321-v-lyric-row.is-editing .sola321-v-lyric-del {
+  opacity: 0.72;
+  pointer-events: auto;
+}
+.sola321-v-lyric-add:hover,
+.sola321-v-lyric-add:focus {
+  opacity: 1 !important;
+  pointer-events: auto;
+  color: #1976d2;
+  background: rgba(219, 234, 254, 0.96) !important;
+}
+.sola321-v-lyric-del:hover,
+.sola321-v-lyric-del:focus {
+  opacity: 1 !important;
+  pointer-events: auto;
+  color: #dc2626;
+  background: rgba(254, 226, 226, 0.96) !important;
+}
+
+/* ChordPro ⇄ Score Studio 雙向同步狀態徽章 */
+.sync-status-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 2px 8px; border-radius: 10px;
+  background: rgba(56, 161, 105, 0.14); color: #38a169;
+  border: 1px solid rgba(56, 161, 105, 0.35);
+  font-weight: 600;
+}
+.sync-status-badge.sync-warn {
+  background: rgba(240, 180, 41, 0.16); color: #d69e2e;
+  border-color: rgba(240, 180, 41, 0.4);
+}
+
+/* ===== 列印預覽專用樣式 (@media print)：隱藏所有操作介面框線，僅完整列印樂譜內容 ===== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 8mm;
+  }
+  html, body {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .topbar,
+  .col-left,
+  .col-right,
+  .editor-tabs,
+  .editor-header,
+  .editor-footer,
+  .editor-statusbar,
+  .sola321-top-header,
+  .sola321-toolbar,
+  #sola321-status,
+  .sola321-status-bar,
+  #score-pane,
+  #chordpro-pane,
+  #preview-pane,
+  #score-studio-mixed-viewer,
+  .sola321-v-lyric-add,
+  .sola321-v-lyric-del,
+  .sola321-v-chord-del,
+  .sola321-v-toolbar,
+  .toast-stack,
+  .modal {
+    display: none !important;
+  }
+  .workspace,
+  .col-center,
+  .editor-container,
+  .editor-body,
+  #sola321-pane,
+  .sola321-wrap,
+  #sola321-score {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+  .sola321-score-page,
+  .sola321-score-body,
+  .sola321-vertical-body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  .sola321-vmeasure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .sola321-title-input,
+  .sola321-meta-input,
+  .sola321-v-note-editor,
+  .sola321-v-lyric-editor,
+  .sola321-v-chord-input {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
+
+

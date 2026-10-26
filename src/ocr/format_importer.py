@@ -1,13 +1,11 @@
-from pathlib import Path
-from typing import Tuple, List, Dict, Any, Optional
 import io
 import json
 import re
-from PIL import Image, ImageDraw, ImageFont
-import numpy as np
+from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 from src.ocr.recognizer import Symbol
-
 
 # 支援的副檔名清單
 SUPPORTED_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tiff", ".tif"}
@@ -45,9 +43,9 @@ def render_text_to_score_image(
     return img
 
 
-def parse_txt_to_symbols(text: str) -> List[Symbol]:
+def parse_txt_to_symbols(text: str) -> list[Symbol]:
     """解析文字格式（支援簡譜 1 2 3 5 6、音名 C4 D4 E4 等）為 Symbol 物件"""
-    symbols: List[Symbol] = []
+    symbols: list[Symbol] = []
     lines = text.strip().splitlines()
 
     # 簡譜字元正則 (如 1, 1., 1-, 0, 等)
@@ -120,7 +118,7 @@ def parse_txt_to_symbols(text: str) -> List[Symbol]:
 
 def import_file_to_image_and_symbols(
     file_bytes: bytes, filename: str
-) -> Tuple[Image.Image, List[Symbol], str]:
+) -> tuple[Image.Image, list[Symbol], str]:
     """多格式上傳核心函式：
     輸入檔案位元組與副檔名，回傳：
     (PIL.Image, List[Symbol], format_type)
@@ -135,7 +133,7 @@ def import_file_to_image_and_symbols(
     # 2. PDF 文件格式 (.pdf)
     if ext == ".pdf":
         try:
-            import pypdfium2 as pdfium
+            import pypdfium2 as pdfium  # type: ignore[import-untyped]
             pdf = pdfium.PdfDocument(file_bytes)
             if len(pdf) == 0:
                 raise ValueError("PDF 檔案為空")
@@ -145,7 +143,7 @@ def import_file_to_image_and_symbols(
             pil_image = bitmap.to_pil().convert("RGB")
             return pil_image, [], "pdf"
         except Exception as e:
-            raise RuntimeError(f"解析 PDF 失敗: {str(e)}")
+            raise RuntimeError(f"解析 PDF 失敗: {str(e)}") from e
 
     # 3. Word 文檔格式 (.docx)
     if ext == ".docx":
@@ -178,7 +176,7 @@ def import_file_to_image_and_symbols(
             symbols = parse_txt_to_symbols(full_text)
             return rendered_img, symbols, "docx_text"
         except Exception as e:
-            raise RuntimeError(f"解析 Word (.docx) 失敗: {str(e)}")
+            raise RuntimeError(f"解析 Word (.docx) 失敗: {str(e)}") from e
 
     # 4. TXT 文字譜 (.txt)
     if ext == ".txt":
@@ -188,19 +186,19 @@ def import_file_to_image_and_symbols(
             symbols = parse_txt_to_symbols(text)
             return rendered_img, symbols, "txt"
         except Exception as e:
-            raise RuntimeError(f"解析 TXT 文字譜失敗: {str(e)}")
+            raise RuntimeError(f"解析 TXT 文字譜失敗: {str(e)}") from e
 
     # 5. JSON 格式 (.json)
     if ext == ".json":
         try:
             data = json.loads(file_bytes.decode("utf-8", errors="replace"))
-            symbols: List[Symbol] = []
+            json_symbols: list[Symbol] = []
             raw_symbols = data.get("symbols", data) if isinstance(data, dict) else data
 
             if isinstance(raw_symbols, list):
                 for idx, s in enumerate(raw_symbols):
                     if isinstance(s, dict):
-                        symbols.append(
+                        json_symbols.append(
                             Symbol(
                                 id=s.get("id", f"json-{idx+1}"),
                                 type=s.get("type", "note"),
@@ -215,14 +213,33 @@ def import_file_to_image_and_symbols(
                         )
 
             # 若 JSON 內無提供影像，生成一張包含音符外框的預覽底圖
-            max_x = max([s.x + s.width for s in symbols], default=800) + 100
-            max_y = max([s.y + s.height for s in symbols], default=600) + 100
+            max_x = max([s.x + s.width for s in json_symbols], default=800) + 100
+            max_y = max([s.y + s.height for s in json_symbols], default=600) + 100
             canvas_img = Image.new("RGB", (max(1000, max_x), max(700, max_y)), (250, 250, 250))
             draw = ImageDraw.Draw(canvas_img)
             draw.text((40, 40), f"JSON Imported Score: {filename}", fill=(100, 100, 100))
 
-            return canvas_img, symbols, "json"
+            return canvas_img, json_symbols, "json"
         except Exception as e:
-            raise RuntimeError(f"解析 JSON 符號失敗: {str(e)}")
+            raise RuntimeError(f"解析 JSON 符號失敗: {str(e)}") from e
 
     raise ValueError(f"不支援的檔案格式: {ext}。支援格式包含: {', '.join(sorted(SUPPORTED_EXTENSIONS))}")
+
+
+def import_pdf_pages(
+    file_bytes: bytes, dpi: int = 200
+) -> list[Image.Image]:
+    """解析 PDF 並回傳所有頁面的 PIL Image 列表"""
+    import pypdfium2 as pdfium  # type: ignore[import-untyped]
+
+    pdf = pdfium.PdfDocument(file_bytes)
+    pages = []
+    scale = dpi / 72.0
+
+    for i in range(len(pdf)):
+        page = pdf[i]
+        bitmap = page.render(scale=scale)
+        pil_image = bitmap.to_pil().convert("RGB")
+        pages.append(pil_image)
+
+    return pages

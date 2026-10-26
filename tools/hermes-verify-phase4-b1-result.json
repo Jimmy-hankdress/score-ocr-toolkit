@@ -1,0 +1,72 @@
+{
+  "project": "doc_62821712c5e4",
+  "results": [
+    {
+      "id": "T0-baseline",
+      "pass": true,
+      "evidence": "count=6 numbers=[1,2,3,4,5,6] ts=4/4"
+    },
+    {
+      "id": "T1-add",
+      "pass": true,
+      "evidence": "count=7 numbers=[1,2,3,4,5,6,7] cursor mi=1 eventModelVersion=3"
+    },
+    {
+      "id": "T1b-beats-by-ts",
+      "pass": true,
+      "evidence": "client measures[1].beats.len=4（4/4 應 4 拍）；server 持久化=4（空小節依文字重建=1，既有行為）"
+    },
+    {
+      "id": "T2-add-again",
+      "pass": true,
+      "evidence": "count=8 mi=2"
+    },
+    {
+      "id": "T3-undo-restore",
+      "pass": true,
+      "evidence": "count=6 numbers=[1,2,3,4,5,6] mi=0 undoLen=0 redoLen=2"
+    },
+    {
+      "id": "T4-redo",
+      "pass": true,
+      "evidence": "count=8 mi=2"
+    },
+    {
+      "id": "T5-del-first",
+      "pass": true,
+      "evidence": "count=7 numbers=[1,2,3,4,5,6,7] cursor mi=1（刪游標之前→游標索引-1）"
+    },
+    {
+      "id": "T6-empty-doc",
+      "pass": true,
+      "evidence": "count=0 mi=0 nti=0 api.measures.len=0"
+    },
+    {
+      "id": "T7-add-on-empty",
+      "pass": true,
+      "evidence": "count=1 mi=0 nti=0"
+    },
+    {
+      "id": "T8-del-cursor-measure",
+      "pass": true,
+      "evidence": "pre count=2 mi=1 → 刪 mi=1（游標所在）→ post count=1 mi=0 nti=0"
+    },
+    {
+      "id": "T9-save-reload",
+      "pass": true,
+      "evidence": "reload 前 api=1 reload 後 probe.count=1"
+    },
+    {
+      "id": "T10-3view",
+      "pass": true,
+      "evidence": "grid model=1/gridDom=1 timeline model=1 vertical model=1/vDom=1"
+    },
+    {
+      "id": "T11-console",
+      "pass": true,
+      "evidence": "console errors=(none)"
+    }
+  ],
+  "pass": 13,
+  "fail": 0
+}

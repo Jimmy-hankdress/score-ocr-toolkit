@@ -1,13 +1,89 @@
 import xml.etree.ElementTree as ET
+from typing import Any
 from xml.dom import minidom
-from pathlib import Path
-from typing import List, Dict, Any
+
+import src.ocr.jianpu_converter as jianpu_converter
+from src.ocr.config import get_config
+from src.ocr.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+# 從配置取得 MusicXML 預設值
+_cfg = get_config()
+# 使用 divisions=8 確保 32nd note = 1 (最小單位)
+# whole=32, half=16, quarter=8, eighth=4, 16th=2, 32nd=1
+_DIVISIONS = 8
+DURATION_MAP = {
+    "whole": _DIVISIONS * 4,    # 32
+    "half": _DIVISIONS * 2,     # 16
+    "quarter": _DIVISIONS,      # 8
+    "eighth": _DIVISIONS // 2,  # 4
+    "16th": _DIVISIONS // 4,    # 2
+    "32nd": _DIVISIONS // 8,    # 1
+}
+
+MEASURE_DIVISIONS = _DIVISIONS * 4  # 32 (4 quarter notes per measure)
 
 
-def symbols_to_musicxml(symbols: List[Dict[str, Any]], title: str = "ScoreOCR Corrected Score") -> str:
-    """將校對後的 Symbol 列表組裝為標準 MusicXML 4.0 格式字串。"""
+def _parse_pitch_for_musicxml(pitch_str: str | None) -> tuple[str, int, int]:
+    """
+    解析音高字串為 MusicXML 所需的 (step, alter, octave)。
+
+    Args:
+        pitch_str: 音高字串，如 "C4", "F#5", "Bb3", "C##4", "Dbb3"
+
+    Returns:
+        (step, alter, octave) - step: A-G, alter: 半音調整(-2..2), octave: 整數
+    """
+    if not pitch_str:
+        return "C", 0, 4
+
+    parsed = jianpu_converter.parse_pitch(pitch_str)
+    if not parsed:
+        logger.warning("無法解析音高 '%s'，使用預設值 C4", pitch_str)
+        return "C", 0, 4
+
+    step, acc, octave = parsed
+
+    # 將臨時記號轉換為 MusicXML alter 值
+    alter_map = {
+        "": 0,
+        "#": 1,
+        "##": 2,
+        "b": -1,
+        "bb": -2,
+    }
+    alter = alter_map.get(acc, 0)
+
+    return step, alter, octave
+
+
+def symbols_to_musicxml(
+    symbols: list[dict[str, Any]],
+    title: str = "ScoreOCR Corrected Score",
+    key_fifths: int = 0,
+    time_beats: int = 4,
+    time_beat_type: int = 4,
+    clef_sign: str = "G",
+    clef_line: int = 2,
+) -> str:
+    """
+    將校對後的 Symbol 列表組裝為標準 MusicXML 4.0 格式字串。
+
+    Args:
+        symbols: 音符符號列表（dict 或 Symbol dataclass）
+        title: 樂譜標題
+        key_fifths: 調號（五度圈位置，正為升號、負為降號）
+        time_beats: 拍號分子
+        time_beat_type: 拍號分母
+        clef_sign: 譜號類型 (G, F, C)
+        clef_line: 譜號所在線
+
+    Returns:
+        格式化的 MusicXML 字串
+    """
     root = ET.Element("score-partwise", version="4.0")
-    
+
     # 標題
     work = ET.SubElement(root, "work")
     work_title = ET.SubElement(work, "work-title")
@@ -34,33 +110,25 @@ def symbols_to_musicxml(symbols: List[Dict[str, Any]], title: str = "ScoreOCR Co
     # 第一小節設定屬性 (譜號與調號)
     attributes = ET.SubElement(measure, "attributes")
     divisions = ET.SubElement(attributes, "divisions")
-    divisions.text = "4"
-    
+    divisions.text = str(_DIVISIONS)
+
     key = ET.SubElement(attributes, "key")
     fifths = ET.SubElement(key, "fifths")
-    fifths.text = "0"
+    fifths.text = str(key_fifths)
 
     time = ET.SubElement(attributes, "time")
     beats = ET.SubElement(time, "beats")
-    beats.text = "4"
+    beats.text = str(time_beats)
     beat_type = ET.SubElement(time, "beat-type")
-    beat_type.text = "4"
+    beat_type.text = str(time_beat_type)
 
     clef = ET.SubElement(attributes, "clef")
     sign = ET.SubElement(clef, "sign")
-    sign.text = "G"
+    sign.text = clef_sign
     line = ET.SubElement(clef, "line")
-    line.text = "2"
+    line.text = str(clef_line)
 
     measure_beats = 0
-    duration_map = {
-        "whole": 16,
-        "half": 8,
-        "quarter": 4,
-        "eighth": 2,
-        "16th": 1,
-        "32nd": 0.5
-    }
 
     for item in symbols:
         # 兼容 dict 或 Symbol dataclass 物件
@@ -72,9 +140,9 @@ def symbols_to_musicxml(symbols: List[Dict[str, Any]], title: str = "ScoreOCR Co
             sym = getattr(item, "__dict__", {})
 
         dur_name = sym.get("duration", "quarter")
-        dur_val = duration_map.get(dur_name, 4)
+        dur_val = DURATION_MAP.get(dur_name, _cfg.musicxml_divisions)
 
-        if measure_beats + dur_val > 16:
+        if measure_beats + dur_val > MEASURE_DIVISIONS:
             # 建立新小節
             measure_num += 1
             measure = ET.SubElement(part, "measure", number=str(measure_num))
@@ -88,29 +156,17 @@ def symbols_to_musicxml(symbols: List[Dict[str, Any]], title: str = "ScoreOCR Co
         if sym.get("type") == "rest" or not sym.get("pitch"):
             ET.SubElement(note_elem, "rest")
         else:
-            # 解析音高 C#4, Bb3 等
+            # 使用統一的音高解析函數
             p_str = sym.get("pitch", "C4")
-            step = p_str[0] if p_str else "C"
-            accidental = ""
-            octave = "4"
-            
-            rest_str = p_str[1:]
-            if rest_str.startswith("#"):
-                accidental = "1"
-                octave = rest_str[1:] if len(rest_str) > 1 else "4"
-            elif rest_str.startswith("b"):
-                accidental = "-1"
-                octave = rest_str[1:] if len(rest_str) > 1 else "4"
-            else:
-                octave = rest_str if rest_str else "4"
+            step, alter, octave = _parse_pitch_for_musicxml(p_str)
 
             pitch_elem = ET.SubElement(note_elem, "pitch")
             step_elem = ET.SubElement(pitch_elem, "step")
             step_elem.text = step
 
-            if accidental:
+            if alter != 0:
                 alter_elem = ET.SubElement(pitch_elem, "alter")
-                alter_elem.text = accidental
+                alter_elem.text = str(alter)
 
             octave_elem = ET.SubElement(pitch_elem, "octave")
             octave_elem.text = str(octave)

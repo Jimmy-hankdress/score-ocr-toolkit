@@ -1,0 +1,55 @@
+# Pre-commit Hooks Configuration
+# 代碼提交前自動檢查
+
+repos:
+  # Ruff - 快速 Python linter/formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # MyPy - 靜態類型檢查
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies: [types-requests]
+        args: [--strict, src/, app.py]
+
+  # 基礎檢查
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: debug-logger
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Bandit - 安全掃描 (可選，較慢)
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.8
+    hooks:
+      - id: bandit
+        args: [-r, src/, app.py, -f, json, -o, bandit-report.json]
+        stages: [commit, push]
+        verbose: true
+
+  # Safety - 依賴漏洞掃描 (可選)
+  - repo: https://github.com/pyupio/safety
+    rev: 2.3.5
+    hooks:
+      - id: safety
+        args: [--json, --output, safety-report.json]
+        stages: [push]
+
+# 配置
+default_stages: [commit]
+fail_fast: false

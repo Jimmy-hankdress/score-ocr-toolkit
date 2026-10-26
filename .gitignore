@@ -1,7 +1,73 @@
+# Python
 .venv/
 __pycache__/
 */__pycache__/
 */*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Build & Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing & Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Application Data
 uploads/
 processed/
-*.pyc
+data/
+暫存樂譜/
+*.sqlite3
+*.db
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Type checking
+*.pyi

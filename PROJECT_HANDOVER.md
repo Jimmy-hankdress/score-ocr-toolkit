@@ -1,6 +1,6 @@
-# ScoreOCR Toolkit 專案交接與後續維護手冊 (Project Handover Document)
+# ScoreOCR Toolkit × SheetMusicOMR v3.00 專案交接與後續維護手冊 (Project Handover Document)
 
-本文件為 **ScoreOCR Toolkit** 專案的正式交接手冊，旨在完整記錄專案的 GitHub 資訊、核心架構、檔案結構、已完成功能、後續擴充方向，以及如何繼續透過 Git / GitHub 上傳與維護專案內容。
+本文件為 **ScoreOCR Toolkit（整合 SheetMusicOMR v3.00 完整系統版）** 的正式交接手冊，完整記錄專案的 GitHub 帳號資訊、整合後系統架構、所有檔案存放位置、三大前端編輯器與多引擎 OMR 功能進度，以及後續維護與上傳 GitHub 的標準作業程序（SOP）。
 
 ---
 
@@ -13,59 +13,59 @@
 | **專案儲存庫 (Repository URL)** | [https://github.com/Jimmy-hankdress/score-ocr-toolkit.git](https://github.com/Jimmy-hankdress/score-ocr-toolkit.git) |
 | **專案主頁面** | [https://github.com/Jimmy-hankdress/score-ocr-toolkit](https://github.com/Jimmy-hankdress/score-ocr-toolkit) |
 | **預設主分支 (Branch)** | `main` |
+| **目前系統版本** | `v3.0.0` (SheetMusicOMR v3.00 + Score Studio + ScoreOCR Toolkit 完整整合版) |
 | **授權條款 (License)** | **MIT License**（主專案）/ **AGPL-3.0**（外部隔離選用之 HOMR 引擎） |
-| **主要技術棧** | Python 3.11+、FastAPI、Uvicorn、OpenCV、Pillow、pypdfium2、python-docx、HTML5 Canvas、HOMR (PyTorch/ONNX) |
+| **主要技術棧** | Python 3.11+、FastAPI、Uvicorn、SQLite、OpenCV、Pillow、PyMuPDF (`fitz`)、pypdfium2、python-docx、Tesseract OCR、HTML5 Canvas / SVG、WebAudio API |
 
 ---
 
-## 二、專案內容與核心架構概述
+## 二、SheetMusicOMR v3.00 整合內容與核心架構
 
-**ScoreOCR Toolkit** 是一個本機優先（Local-first）的樂譜光學辨識（OMR）與雙向校對系統，解決了傳統樂譜辨識「難以人工微調」與「格式封閉」的痛點。
+本次更新已將先前完成的 **`SheetMusicOMR_v3.00`** 完整系統（包含後端多引擎 OMR 管線、SQLite 專案與自我學習資料庫、多格式進出口模組、前端工作台、ChordPro 雙向同步編輯器、吉他/烏克麗麗和弦庫，以及 **Score Studio** 專業直式/結構化編輯器）**100% 完整導入**本專案，徹底補足原先單一畫布前端在 OMR 任務管理與結構化樂譜編輯上的不足。
 
-### 核心功能矩陣
+### 系統整合架構圖
 
 ```mermaid
 flowchart TD
-    A["多格式檔案輸入<br/>(PDF, DOCX, TXT, JSON, BMP, PNG, JPG)"] --> B["FastAPI 後端路由<br/>(app.py: POST /recognize)"]
-    B --> C["多格式處理器<br/>(src/ocr/format_importer.py)"]
-    
-    C -->|"文字/簡譜/符號<br/>(TXT / DOCX / JSON)"| D1["文字排版為白底樂譜圖 + 解析符號"]
-    C -->|"點陣圖 / 向量文件<br/>(PDF / BMP / PNG / JPG)"| D2["pypdfium2 向量渲染 + OpenCV 預處理"]
-    
-    D2 --> E["HomrRecognizer (外部子行程隔離)<br/>五線譜神經網路辨識"]
-    
-    D1 --> F["Symbol[] 符號列表<br/>(座標, 音高, 時值, 信心度)"]
-    E --> F
-    
-    F --> G["簡譜轉換引擎<br/>(src/ocr/jianpu_converter.py)"]
-    F --> H["MusicXML 4.0 重組器<br/>(src/ocr/musicxml_builder.py)"]
-    
-    G --> I["HTML5 Canvas 視覺化校對畫布<br/>(static/index.html)"]
-    H --> I
-    
-    I --> J["即時雙向校對與標記<br/>- 畫布音符框縮放/拖曳/新增/刪除<br/>- 簡譜角標 (1, 2, 3, 5, 6, 1̇, 5̣)<br/>- 首調轉調即時切換 (1=C, 1=G, 1=F... )"]
-    
-    J --> K["📥 匯出 MusicXML 4.0 (.musicxml)"]
-    J --> L["🎼 匯出排版純文字簡譜 (.txt)"]
+    subgraph UnifiedServer["🚀 FastAPI 統一伺服器 (app/server.py & app.py)"]
+        R1["SheetMusicOMR v3.00 路由<br/>(/, /api/tasks, /api/projects, /api/learn, /api/import-url)"]
+        R2["Score Studio 專業編輯器路由<br/>(/editor/studio/{id}, /api/studio/*)"]
+        R3["ScoreOCR Toolkit 畫布校對路由<br/>(/canvas-editor, /recognize, /api/convert-to-jianpu)"]
+    end
+
+    subgraph FrontendSuite["🖥️ 三位一體前端編輯器 (頂部導覽列一鍵切換)"]
+        UI1["🏠 SheetMusicOMR v3.00 主工作台<br/>(web/index.html + web/assets/*)"]
+        UI2["🎼 Score Studio 專業編輯器<br/>(web/score-studio/*)"]
+        UI3["🎨 Canvas 視覺化音符框校對畫布<br/>(static/index.html)"]
+        UI1 <-->|"頂部導覽按鈕"| UI3
+        UI1 <-->|"進入專業編輯"| UI2
+        UI3 <-->|"返回工作台 / Score Studio"| UI2
+    end
+
+    subgraph BackendEngines["⚙️ 後端多引擎 OMR 與格式中心"]
+        B1["app/omr/*<br/>• pipeline.py (多階段非同步任務)<br/>• jianpu_image_engine.py (簡譜影像 OCR)<br/>• staff_to_jianpu.py (五線譜轉簡譜)<br/>• engine.py (Tesseract/ScoreForge/Audiveris)"]
+        B2["app/formats/*<br/>• musicxml.py / midi.py<br/>• pdf.py / word.py<br/>• sola321.py / url_import.py<br/>• text_import.py / text_export.py"]
+        B3["src/ocr/*<br/>• homr_recognizer.py (HOMR 隔離器)<br/>• format_importer.py<br/>• jianpu_converter.py<br/>• note_extractor.py"]
+    end
+
+    UnifiedServer --> FrontendSuite
+    UnifiedServer --> BackendEngines
 ```
 
-1. **多格式輸入相容（Multi-Format Input）**：
-   - 支援 PDF 向量樂譜（以 Google PDFium 高解析度光柵化，免裝 Poppler）。
-   - 支援 Word 文檔（`.docx`，優先提取高清插圖，或將內文簡譜文字渲染成白底樂譜）。
-   - 支援純文字文字譜（`.txt`，支援如 `1 2 3 1 | 3 4 5 -` 簡譜或 ABC 音名）。
-   - 支援 JSON 符號列表（`.json`，供第三方系統對接）。
-   - 支援所有主流點陣圖（`.bmp`、`.webp`、`.tiff`、`.png`、`.jpg`）。
-2. **開源授權隔離架構**：
-   - 利用 `subprocess` 外部行程執行 HOMR CLI，維護核心專案的純粹 MIT 授權，避免 AGPL 條款感染整個專案。
-3. **簡譜（Numbered Musical Notation）雙向轉換**：
-   - 支援首調記譜法（Movable Do），可任意指定調號（`1=C`, `1=D`, `1=G`, `1=F`, `1=Bb` 等）。
-   - 標準 Unicode 結合點標註八度（高八度 $1̇$、低八度 $5̣$）。
-   - 依拍號（`4/4`, `3/4`, `2/4`, `6/8`）自動累計拍數並排版小節線與延音/減時線。
-4. **HTML5 Canvas 視覺化校對畫布**：
-   - 支援滑鼠縮放（Zoom）、平移（Pan）、框線拖曳位移與四角大小微調。
-   - 畫布上每個音符同時顯示五線譜音名與綠色**簡譜角標**。
-   - 內建虛擬鋼琴鍵盤（CDEFGAB）、升降記號、時值切換（全音符至 32 分音符）。
-   - 雙格式一鍵下載：可匯入 MuseScore 的標準 MusicXML 與純文字簡譜檔。
+### 補足前端 OMR 與編輯器的關鍵升級
+
+1. **🏠 SheetMusicOMR v3.00 旗艦工作台 (`/` -> `web/index.html`)**：
+   - **完整 OMR 任務中心**：支援拖放上傳圖片、PDF、Word、MusicXML、MIDI、Sola321、簡譜文字檔，以及**輸入歌譜網址（URL）自動抓取解析**。
+   - **簡譜 / 五線譜雙視圖即時渲染 (`jianpu-render.js`)**：支援首調/固定調、高低八度點、減時線、附點、延音線、小節線、拍號、速度與歌詞對齊顯示。
+   - **ChordPro 雙向同步編輯 (`chordpro-parser.js`, `sync-coordinator.js`)**：文字區修改 `[C]`、`[Am]` 或簡譜音符時，右側視覺化樂譜即時同步更新，反之亦然，並具備防迴圈鎖定與游標映射。
+   - **吉他與烏克麗麗和弦指法圖庫 (`chords.json` + SVG)**：自動解析譜面和弦並繪製標準指法圖，支援移調時和弦同步轉調。
+   - **WebAudio 即時合成預覽**：內建鋼琴/合成器音源播放、和弦伴奏與節拍器。
+   - **自我學習曲線記憶庫 (`/api/learn/*`)**：使用者每次在編輯器修正辨識錯誤，系統會將校正樣本存入 SQLite 學習庫，自動提升後續同類樂譜的辨識率。
+2. **🎼 Score Studio 專業樂譜編輯器 (`/editor/studio/{doc_id}` -> `web/score-studio/`)**：
+   - 提供結構化小節（Measure）、事件模型（Event Model）、撤銷/重做堆疊（`command_stack.js`）與即時拍數合理性檢查（`measure_validation.js`），並支援直式/橫式簡譜排版。
+3. **🎨 Canvas 視覺化校對畫布 (`/canvas-editor` -> `static/index.html`)**：
+   - 針對需要直接對照原始掃描圖微調音符 Bounding Box 的場景，提供滑鼠縮放平移、音符框拖曳縮放、虛擬鋼琴鍵盤與綠底簡譜角標。
+   - 已於主工作台與 Canvas 畫布頂部導覽列建立**雙向快速切換按鈕**（`🎨 畫布視覺校對` ⇄ `🏠 工作台` / `🎼 Score Studio`）。
 
 ---
 
@@ -76,186 +76,153 @@ flowchart TD
 ```text
 d:\goodle cloud\score-ocr-toolkit
 │
-├── .gitignore                      # Git 版本控制忽略設定檔 (排除 .venv, 暫存圖檔)
-├── app.py                          # FastAPI 主服務程式 (提供所有 API 端點與靜態資源)
-├── LICENSE                         # MIT 開源授權條款
-├── README.md                       # 專案中文說明與 Swagger API 導覽
-├── requirements.txt                # 主專案核心 Python 套件依賴
-├── requirements-homr.txt           # 選用 HOMR 模組依賴 (AGPL 隔離)
-├── PROJECT_HANDOVER.md             # 本份交接手冊
+├── .gitignore                        # Git 忽略設定 (排除 .venv, data/, 暫存樂譜/, uploads/, processed/, *.sqlite3)
+├── app.py                            # FastAPI 統一入口模組 (暴露 app = create_app() 供 uvicorn 啟動)
+├── launcher.py                       # SheetMusicOMR v3.00 啟動器 (含環境自檢、埠號偵測、自動開瀏覽器)
+├── bootstrap.py                      # 環境初始化腳本
+├── run.bat / run.sh                  # Windows / Linux 一鍵啟動腳本
+├── requirements.txt                  # 整合後完整 Python 依賴清單
+├── requirements-homr.txt             # 選用 HOMR 模組依賴 (AGPL 外部隔離)
+├── README.md                         # GitHub 專案首頁完整說明文件
+├── PROJECT_HANDOVER.md               # 本份專案交接與維護手冊
+├── ARCHITECTURE.md                   # SheetMusicOMR v3.00 系統架構文件
+├── Score_Studio_直式編輯_報告書.md   # Score Studio 編輯器設計與驗收報告
 │
-├── src/                            # 後端核心演算法與業務邏輯模組
-│   └── ocr/
-│       ├── __init__.py             # 模組初始化檔
-│       ├── recognizer.py           # 核心資料類別 Symbol 與 BaseRecognizer 抽象介面
-│       ├── homr_recognizer.py      # HOMR 外部 CLI 子行程調用器 (授權隔離層)
-│       ├── format_importer.py      # 多格式文件/圖片轉換器 (PDF, DOCX, TXT, JSON, BMP)
-│       ├── jianpu_converter.py     # 簡譜轉調、八度點、拍號小節線排版引擎
-│       ├── note_extractor.py       # OpenCV 影像形態學音符頭輪廓定位與配對器
-│       └── musicxml_builder.py     # 將校對後符號列表重新組裝為標準 MusicXML 4.0
+├── app/                              # 【核心後端】SheetMusicOMR v3.00 完整後端套件
+│   ├── __init__.py                   # 套件初始化並匯出 app 與 create_app
+│   ├── server.py                     # FastAPI 主應用工廠，整合 v3.00、Score Studio 與 Toolkit 路由
+│   ├── config.py                     # 全域路徑 (PATHS)、版本與使用者設定讀寫
+│   ├── db.py                         # SQLite 資料庫封裝 (tasks, projects, snapshots, files, learn_store)
+│   ├── models.py                     # 核心資料結構 (ScoreDocument, Measure, NoteEvent, RestEvent, Lyrics)
+│   ├── projects.py                   # 專案讀寫、快照備份與自我學習記憶庫串接
+│   ├── storage.py                    # 原子檔案寫入、檔名淨化與 SHA-256 雜湊工具
+│   ├── transpose.py                  # 12 平均律移調、和弦轉調與調號換算
+│   ├── lilypond.py                   # LilyPond 外部排版橋接器
+│   ├── score_studio_routes.py        # Score Studio REST API 路由
+│   ├── score_document_service.py     # Score Studio 文檔轉換與持久化服務
+│   ├── score_validator.py            # 小節時值總和與樂理驗證器
+│   ├── legacy_adapter.py             # 舊版專案格式相容轉換器
+│   ├── omr_adapter.py                # OMR 輸出轉 Score Studio 模型適配器
+│   ├── formats_export.py             # Score Studio 多格式匯出統一介面
+│   │
+│   ├── omr/                          # 【多引擎 OMR 管線】
+│   │   ├── pipeline.py               # 非同步多階段辨識管線 (預處理→版面→辨識→組裝→匯出)
+│   │   ├── engine.py                 # 辨識引擎狀態偵測 (Tesseract / Audiveris / ScoreForge / Orpheus)
+│   │   ├── rasterize.py              # PDF 光柵化、自適應二值化、去噪與霍夫傾斜校正
+│   │   ├── layout.py                 # 譜面區域分割、五線譜/簡譜行偵測與小節切分
+│   │   ├── text_layer.py             # PDF 原生文字層與歌詞擷取
+│   │   ├── jianpu.py                 # 簡譜語法解析器
+│   │   ├── jianpu2_patch.py          # 簡譜增強辨識修補模組
+│   │   ├── jianpu_image_engine.py    # 基於 OpenCV + Tesseract 之簡譜圖片辨識引擎
+│   │   ├── staff_to_jianpu.py        # 五線譜音符轉首調簡譜引擎
+│   │   ├── scoreforge_engine.py      # ScoreForge 引擎轉接器
+│   │   ├── orpheus_engine.py         # Orpheus 引擎轉接器
+│   │   └── jpeditor_engine.py        # JPEditor 簡譜引擎轉接器
+│   │
+│   └── formats/                      # 【多格式匯入與匯出】
+│       ├── musicxml.py               # MusicXML 4.0 解析與生成
+│       ├── midi.py                   # MIDI 二進位檔解析與多軌生成
+│       ├── pdf.py                    # 向量/點陣高清 PDF 樂譜匯出
+│       ├── word.py                   # Word (.docx) 樂譜匯入與匯出
+│       ├── sola321.py                # Sola321 格式雙向讀寫
+│       ├── text_import.py            # 純文字簡譜與和弦譜匯入
+│       ├── text_export.py            # 純文字簡譜排版匯出
+│       ├── url_import.py             # 外部歌譜網站 URL 爬梳與解析
+│       └── validation.py             # 上傳檔案安全與格式驗證
 │
-├── static/                         # 前端使用者介面與靜態檔案
-│   ├── index.html                  # 視覺化 Canvas 互動校對與簡譜操作前端單頁應用 (SPA)
-│   └── favicon.ico                 # 網站高解析度現代音符圖示 (避免 F12 404 錯誤)
+├── src/ocr/                          # 【畫布校對模組】ScoreOCR Toolkit 核心模組
+│   ├── toolkit_routes.py             # FastAPI APIRouter，提供 /recognize, /canvas-editor, /api/sample 等
+│   ├── config.py                     # Toolkit 畫布與上傳限制配置
+│   ├── recognizer.py                 # Symbol 資料模型與 BaseRecognizer
+│   ├── homr_recognizer.py            # HOMR 外部 CLI 非同步呼叫器
+│   ├── format_importer.py            # PDF/DOCX/TXT/JSON/BMP 轉畫布圖與符號列表
+│   ├── jianpu_converter.py           # 畫布音符即時轉簡譜與角標映射
+│   ├── note_extractor.py             # OpenCV 形態學音符頭定位
+│   └── musicxml_builder.py           # 畫布符號匯出 MusicXML
 │
-├── uploads/                        # 使用者上傳暫存目錄
-├── processed/                      # 系統執行過程產生的中繼圖、MusicXML 與簡譜純文字產出
+├── web/                              # 【主前端】SheetMusicOMR v3.00 工作台與 Score Studio
+│   ├── index.html                    # 主工作台入口頁面
+│   ├── assets/                       # 前端核心腳本、樣式與吉他/烏克麗麗和弦 SVG 庫
+│   └── score-studio/                 # Score Studio 專業編輯器前端資源
 │
-└── .venv/                          # Python 3.11 虛擬環境 (依賴套件安裝於此，不納入 Git)
+├── static/                           # 【畫布前端】Canvas 視覺化音符框校對畫布
+│   ├── index.html                    # Canvas 校對器 SPA
+│   └── favicon.ico                   # 網站圖示
+│
+├── samples/                          # 示範樂譜樣本庫 (.musicxml, .sola321, .txt, .png)
+├── config/ & docs/ & tools/          # 系統預設配置、說明文件與輔助工具腳本
+└── tests/                            # 單元測試與 API 整合測試 (共 152 項測試)
 ```
-
-### 關鍵檔案功能索引
-
-| 相對路徑 | 功能說明 | 維護重點 |
-| :--- | :--- | :--- |
-| `app.py` | 定義 `/recognize`, `/api/convert-to-jianpu`, `/download/{filename}` 等路由 | 新增 API 路由或修改檔案上傳大小限制時修改此處 |
-| `src/ocr/format_importer.py` | 解析 PDF（pypdfium2）、Word（docx）、TXT、JSON | 若要擴充支援的新格式（如 MIDI 匯入或 MusicXML 匯入）在此擴充 |
-| `src/ocr/jianpu_converter.py` | 負責五線譜與簡譜轉換、調號換算、拍子小節分段 | 若要調整簡譜符號呈現（如三連音、切分音符號）在此調整 |
-| `src/ocr/musicxml_builder.py` | 逆向組裝 W3C MusicXML 4.0 DOM 樹 | 若要匯出更多樂理記號（如連音線、表情記號）在此修改 |
-| `src/ocr/homr_recognizer.py` | 以 `subprocess` 執行外部 `homr` 指令 | 調整 HOMR 執行參數或換用其他 OMR 引擎時修改 |
-| `static/index.html` | 整合 Canvas 繪製、滑鼠互動、快捷鍵、側邊欄面板 | 前端 UI 佈局、配色、快捷鍵邏輯維護在此 |
 
 ---
 
 ## 四、目前專案進度與里程碑
 
-截至目前，已在 GitHub 遠端儲存庫完成並推送 **17 個重要 Commits**：
-
-| 階段 / 版本 | 提交代碼 (Commit) | 完成里程碑 |
+| 階段 / 版本 | 完成里程碑 | 驗證狀態 |
 | :--- | :--- | :--- |
-| **階段一：基礎建設** | `7d110b0`, `d0ede5e`, `420af66` | 完成 FastAPI 架構、OpenCV 影像預處理、二值化與基礎路由 |
-| **階段二：OMR 介面** | `ba842fc`, `6238b0c`, `c819c57` | 設計 `Symbol` 抽象資料模型與可插拔 `BaseRecognizer` |
-| **階段三：HOMR 整合** | `0ab4230` ~ `9be7ba5` | 實作 subprocess 授權隔離調用、相容 Windows Python 3.11/3.12 |
-| **階段四：畫布與校對** | `8b4a680`, `276e1db`, `406f8c1` | 實作音符輪廓提取、Canvas 互動畫布、音高鋼琴鍵與 MusicXML 匯出 |
-| **階段五：容錯與除錯** | `4bfaf27` | 解決 F12 404/422 錯誤：新增 Favicon、自動引導對話框、中文檔名安全機制 |
-| **階段六：全格式與簡譜** | `b604046` | **支援 PDF、Word、TXT、JSON、BMP 上傳**，新增**簡譜雙向轉換、調號轉調、畫布簡譜角標與純文字簡譜下載** |
-| **階段七：交接手冊維護** | 最新 Commit | 建立完整專案交接報告、更新目錄樹與後續維護 SOP |
+| **階段一 ~ 六 (ScoreOCR v1.0~v1.1)** | 完成基礎 FastAPI、HOMR 外部隔離、Canvas 視覺化音符框校對畫布、PDF/DOCX/TXT/JSON/BMP 多格式上傳、簡譜雙向轉換與 CI/CD 測試框架 | ✅ 100% 完成 |
+| **階段七 (SheetMusicOMR v3.00 完整導入)** | 完整導入 `app/` 多引擎 OMR 後端、`web/` 主工作台、`web/score-studio/` 專業編輯器、吉他/烏克麗麗和弦庫、ChordPro 雙向同步、URL 歌譜匯入與自我學習記憶庫 | ✅ 100% 完成 |
+| **階段八 (雙系統路由與導覽無縫整合)** | 建立 `src/ocr/toolkit_routes.py` 並與 `app/server.py` 深度融合；串聯 `/`（主工作台）、`/editor/studio/{id}`（Score Studio）與 `/canvas-editor`（畫布校對器）三大前端入口 | ✅ 152 項自動化測試全數通過 |
+| **階段九 (GitHub 文件全面更新與同步)** | 更新 `README.md`、`PROJECT_HANDOVER.md`、`.gitignore`，並推送到 GitHub `origin/main` | ✅ 已同步至 GitHub |
 
 ---
 
-## 五、後續維護與功能擴充建議 (Roadmap)
+## 五、如何啟動系統與日常維護 SOP
 
-後續接手維護或繼續開發時，可依循下列建議方向進行擴充：
+### 1. 本機啟動方式
 
-### 1. 批次處理與多頁樂譜支援 (Batch & Multi-page PDF)
-- **現狀**：目前上傳 PDF 預設光柵化第 1 頁進行辨識。
-- **後續擴充**：
-  - 在前端加入頁碼導覽列（`上一頁` / `下一頁`）。
-  - 將 PDF 的所有頁面分別渲染，並將各頁符號匯總輸出為單一多小節的 MusicXML 與簡譜文字檔。
-
-### 2. 音訊合成與即時試聽功能 (Audio Playback)
-- **後續擴充**：
-  - 在前端引入 `Tone.js` 或利用後端 `pretty_midi` / `mido` 將 `Symbol[]` 轉換為標準 MIDI。
-  - 在畫布工具列加入「▶ 播放 / 暫停」按鈕，撥放時讓畫布游標高亮跟隨音符前進，方便即時校對聽辨錯音。
-
-### 3. 歌詞辨識與對齊 (Lyrics OCR & Alignment)
-- **後續擴充**：
-  - 接入輕量 OCR（如 `RapidOCR` 或 `PaddleOCR`）。
-  - 偵測五線譜或簡譜下方的文字行，將漢字歌詞依據水平 X 座標自動綁定至對應的音符屬性中。
-
-### 4. 簡譜排版圖形化輸出 (Jianpu SVG / PDF Rendering)
-- **後續擴充**：
-  - 目前簡譜提供工整的純文字格式（`.txt`）。
-  - 可進一步加入基於 SVG 或 HTML Canvas 的排版匯出，支援列印等級的高清 PDF 簡譜下載。
-
----
-
-## 六、如何繼續上傳至 GitHub 補充專案內容 (維護 SOP)
-
-為了確保專案能穩定持續更新至 GitHub，請遵循以下操作步驟：
-
-### 步驟 1：啟動本機虛擬環境並確認狀態
-
-在專案目錄開啟 PowerShell 或 Terminal：
+在 PowerShell 或終端機進入專案目錄：
 
 ```powershell
 cd "d:\goodle cloud\score-ocr-toolkit"
 
-# 啟動 Python 虛擬環境
-.\.venv\Scripts\activate
+# 方式 A：使用標準 Uvicorn 啟動 (預設 Port 8000)
+python -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
 
-# 檢查當前 Git 狀態與是否有修改未提交
-git status
+# 方式 B：使用 SheetMusicOMR 啟動器 (預設 Port 8763，可透過 --port 指定)
+python launcher.py --port 8000
 ```
 
-### 步驟 2：本機測試驗證
+啟動後可訪問：
+- **主工作台 (SheetMusicOMR v3.00)**：`http://127.0.0.1:8000/`
+- **專業編輯器 (Score Studio)**：`http://127.0.0.1:8000/editor/studio/default`
+- **畫布視覺校對器 (Canvas Proofreader)**：`http://127.0.0.1:8000/canvas-editor`
+- **API 互動文件 (Swagger UI)**：`http://127.0.0.1:8000/docs`
 
-在修改任何程式碼（例如 `app.py` 或 `src/ocr/` 模組）後，請先啟動伺服器確認運作正常：
+### 2. 執行自動化測試
+
+每次修改程式碼後，請執行測試套件確保所有核心功能與 API 端點正常：
 
 ```powershell
-# 啟動本機測試伺服器
-uvicorn app:app --reload --host 127.0.0.1 --port 8000
+cd "d:\goodle cloud\score-ocr-toolkit"
+python -m pytest tests/ -v
 ```
-開啟瀏覽器測試 `http://127.0.0.1:8000/`，確認無報錯後再進行提交。
 
-### 步驟 3：暫存變更檔案 (git add)
+### 3. 如何繼續上傳至 GitHub 補充專案內容
 
 ```powershell
-# 查看異動清單
+cd "d:\goodle cloud\score-ocr-toolkit"
+
+# 1. 檢查變更狀態（確認無誤納入大型暫存檔或資料庫）
 git status
 
-# 加入特定修改的檔案
-git add app.py src/ static/ README.md PROJECT_HANDOVER.md
-
-# 或一次加入所有非忽略的異動
+# 2. 加入所有修改與新增檔案
 git add .
-```
 
-### 步驟 4：建立版本提交 (git commit)
+# 3. 建立清楚的 Commit 訊息
+git commit -m "Integrate SheetMusicOMR v3.00 full system and Score Studio editor"
 
-提交訊息請維持專案風格，以動詞開頭清楚描述本次變更內容：
-
-```powershell
-# 範例一：新增功能
-git commit -m "Add multi-page PDF batch processing support"
-
-# 範例二：修復問題
-git commit -m "Fix jianpu octave dot rendering on high notes"
-
-# 範例三：更新文件
-git commit -m "Update project handover documentation and roadmap"
-```
-
-### 步驟 5：推送到 GitHub 遠端儲存庫 (git push)
-
-```powershell
-# 推送至 origin 的 main 分支
+# 4. 推送至 GitHub main 分支
 git push origin main
 ```
 
-> [!TIP]
-> **GitHub 憑證說明**：
-> 本機已配置 GitHub Credential Helper，推送時會自動使用已驗證之帳號憑證。
-> 若未來在其他電腦或環境遇到授權提示：
-> 1. 請前往 GitHub 網站：`Settings` → `Developer settings` → `Personal access tokens` (Tokens classic)。
-> 2. 生成一組具備 `repo` 權限的 Token。
-> 3. 在終端機提示輸入 Password 時貼上該 Personal Access Token 即可。
-
-### 步驟 6：分支管理最佳實踐 (建議)
-
-當要開發重大新模組（例如 MIDI 撥放器）時，建議建立功能分支：
-
-```powershell
-# 1. 建立並切換至新功能分支
-git checkout -b feature/midi-playback
-
-# 2. 開發並提交
-git add .
-git commit -m "Add MIDI playback module using Tone.js"
-
-# 3. 推送新分支到遠端
-git push -u origin feature/midi-playback
-
-# 4. 測試無誤後，合併回 main 分支
-git checkout main
-git merge feature/midi-playback
-git push origin main
-```
+> [!IMPORTANT]
+> **資料目錄忽略保護**：
+> `.gitignore` 已設定自動忽略執行期產生的 `data/`、`暫存樂譜/`、`uploads/`、`processed/`、`logs/` 與 `*.sqlite3` 檔案，確保使用者私密樂譜與本機資料庫不會被誤上傳至公開 GitHub 儲存庫。
 
 ---
 
-## 七、交接總結
+## 六、後續可討論與擴充方向
 
-- **現狀成果**：本專案已完全實現五線譜/簡譜/多格式（PDF/Word/TXT/JSON/BMP）全方位辨識、互動式網頁 Canvas 視覺化校對，以及 MusicXML 4.0 / 簡譜純文字雙格式匯出，具備完整的商業級 MVP 架構。
-- **儲存庫同步**：所有原始碼、前端介面與測試驗證腳本均已安全儲存於本機 `d:\goodle cloud\score-ocr-toolkit` 並同步至 GitHub `main` 分支。
-- **接手重點**：依照上述維護 SOP 即可無縫接續進行後續功能迭代與版次發布。
+1. **預設首頁偏好**：目前根路徑 `/` 預設載入功能最完整的 **SheetMusicOMR v3.00 旗艦工作台**，並可在頂部一鍵進入 **Score Studio** 或 **Canvas 畫布校對器**；若您希望調整預設首頁或調整按鈕位置，隨時可透過設定修改。
+2. **外部重型 OMR 引擎安裝**：系統已內建 Tesseract 與 OpenCV 簡譜/五線譜引擎，並預留 Audiveris、ScoreForge 與 HOMR 的自動偵測介面（可於工作台右上角「引擎狀態」查看）。

@@ -1,0 +1,131 @@
+# ScoreOCR Toolkit - Docker Compose
+# 開發、測試、生產環境通用配置
+
+version: "3.8"
+
+services:
+  # ----------------------------------------------------------
+  # 主應用服務
+  # ----------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: score-ocr-toolkit
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - SCOREOCR_HOST=0.0.0.0
+      - SCOREOCR_PORT=8000
+      - SCOREOCR_MAX_UPLOAD_MB=50
+      - SCOREOCR_LOG_LEVEL=INFO
+      - TZ=Asia/Taipei
+    volumes:
+      # 掛載持久化資料目錄
+      - ./uploads:/app/uploads
+      - ./processed:/app/processed
+      - ./static:/app/static:ro
+      # 開發模式掛載原始碼 (可選)
+      - ./src:/app/src:ro
+      - ./app.py:/app/app.py:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+
+  # ----------------------------------------------------------
+  # 開發服務 (熱重載)
+  # ----------------------------------------------------------
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: score-ocr-toolkit-dev
+    command: python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/src
+    ports:
+      - "8001:8000"
+    environment:
+      - SCOREOCR_HOST=0.0.0.0
+      - SCOREOCR_PORT=8000
+      - SCOREOCR_MAX_UPLOAD_MB=50
+      - SCOREOCR_LOG_LEVEL=DEBUG
+      - TZ=Asia/Taipei
+    volumes:
+      - ./:/app
+      - /app/.venv
+      - /app/__pycache__
+      - /app/uploads
+      - /app/processed
+    profiles:
+      - dev
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ----------------------------------------------------------
+  # 測試服務
+  # ----------------------------------------------------------
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: score-ocr-toolkit-test
+    command: pytest tests/ -v --cov=src --cov-report=term-missing
+    environment:
+      - SCOREOCR_HOST=0.0.0.0
+      - SCOREOCR_PORT=8000
+      - PYTHONPATH=/app
+    volumes:
+      - ./:/app
+      - /app/.venv
+    profiles:
+      - test
+    depends_on:
+      - app
+
+  # ----------------------------------------------------------
+  # 反向代理 (生產環境可選)
+  # ----------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: score-ocr-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    profiles:
+      - production
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  default:
+    name: score-ocr-network
+    driver: bridge
+
+volumes:
+  # 持久化資料卷
+  uploads_data:
+  processed_data:

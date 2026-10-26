@@ -1,1301 +1,487 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ScoreOCR Toolkit - 視覺化樂譜校對畫布</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <style>
-    :root {
-      --bg-main: #0f172a;
-      --bg-panel: #1e293b;
-      --bg-card: #334155;
-      --border-color: #475569;
-      --primary: #38bdf8;
-      --primary-hover: #0ea5e9;
-      --accent-note: #06b6d4;
-      --accent-selected: #facc15;
-      --accent-rest: #f97316;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --danger: #ef4444;
-      --success: #10b981;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-
-    body {
-      background-color: var(--bg-main);
-      color: var(--text-main);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    header {
-      background-color: var(--bg-panel);
-      border-bottom: 1px solid var(--border-color);
-      padding: 10px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand h1 {
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      color: #fff;
-    }
-
-    .badge {
-      font-size: 0.75rem;
-      background: #0284c7;
-      color: #fff;
-      padding: 2px 8px;
-      border-radius: 9999px;
-      font-weight: 600;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    button {
-      cursor: pointer;
-      border: 1px solid var(--border-color);
-      background-color: var(--bg-card);
-      color: var(--text-main);
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      transition: all 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    button:hover {
-      background-color: #475569;
-      border-color: #64748b;
-    }
-
-    button.primary {
-      background-color: var(--primary);
-      border-color: var(--primary);
-      color: #0f172a;
-      font-weight: 600;
-    }
-
-    button.primary:hover {
-      background-color: var(--primary-hover);
-    }
-
-    button.success {
-      background-color: var(--success);
-      border-color: var(--success);
-      color: #fff;
-    }
-
-    button.danger {
-      background-color: var(--danger);
-      border-color: var(--danger);
-      color: #fff;
-    }
-
-    button.active {
-      background-color: var(--primary);
-      color: #0f172a;
-      border-color: #38bdf8;
-    }
-
-    .main-container {
-      display: flex;
-      flex: 1;
-      height: calc(100vh - 57px);
-      overflow: hidden;
-    }
-
-    /* Canvas Viewport */
-    .canvas-viewport {
-      flex: 1;
-      background: #090d16;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .canvas-toolbar {
-      position: absolute;
-      top: 14px;
-      left: 14px;
-      background: rgba(30, 41, 59, 0.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border-color);
-      padding: 4px 8px;
-      border-radius: 8px;
-      display: flex;
-      gap: 6px;
-      z-index: 5;
-    }
-
-    .canvas-wrapper {
-      flex: 1;
-      overflow: auto;
-      position: relative;
-      cursor: default;
-    }
-
-    .canvas-wrapper.pan-mode {
-      cursor: grab;
-    }
-
-    .canvas-wrapper.pan-mode:active {
-      cursor: grabbing;
-    }
-
-    .canvas-wrapper.add-mode {
-      cursor: crosshair;
-    }
-
-    #scoreCanvas {
-      display: block;
-      transform-origin: 0 0;
-    }
-
-    /* Sidebar Inspector */
-    .sidebar {
-      width: 360px;
-      background-color: var(--bg-panel);
-      border-left: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-    }
-
-    .section {
-      padding: 16px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .section-title {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    .form-group label {
-      display: block;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 4px;
-    }
-
-    .form-control, select, input[type="text"], input[type="number"] {
-      width: 100%;
-      background: var(--bg-card);
-      border: 1px solid var(--border-color);
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.88rem;
-    }
-
-    .form-control:focus, select:focus, input:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-
-    .btn-group {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 4px;
-    }
-
-    .pitch-pad {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 3px;
-      margin-bottom: 8px;
-    }
-
-    .pitch-pad button {
-      padding: 8px 0;
-      text-align: center;
-      justify-content: center;
-      font-weight: bold;
-    }
-
-    .accidental-pad {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 4px;
-      margin-bottom: 8px;
-    }
-
-    .coord-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .symbol-list {
-      flex: 1;
-      max-height: 240px;
-      overflow-y: auto;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      background: var(--bg-card);
-    }
-
-    .symbol-item {
-      padding: 6px 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      font-size: 0.8rem;
-      display: flex;
-      justify-content: space-between;
-      cursor: pointer;
-    }
-
-    .symbol-item:hover {
-      background: #475569;
-    }
-
-    .symbol-item.selected {
-      background: rgba(56, 189, 248, 0.2);
-      border-left: 3px solid var(--primary);
-    }
-
-    .hint {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-
-    #loadingOverlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.8);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 12px;
-      z-index: 20;
-    }
-
-    .spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid var(--border-color);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* Notice / Error Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-
-    .modal-card {
-      background: var(--bg-panel);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      width: 90%;
-      max-width: 520px;
-      padding: 24px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .modal-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .modal-body {
-      font-size: 0.9rem;
-      color: var(--text-main);
-      line-height: 1.6;
-    }
-
-    .modal-suggestion {
-      background: rgba(245, 158, 11, 0.12);
-      border-left: 4px solid #f59e0b;
-      padding: 12px 14px;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      color: #fde68a;
-      line-height: 1.5;
-      white-space: pre-line;
-    }
-
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 8px;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ScoreOCR Toolkit - SheetMusicOMR v3.00</title>
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--card:#334155;--border:#475569;--accent:#38bdf8;--accent2:#10b981;--accent3:#f97316;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:8px}
+.brand h1{font-size:1rem;font-weight:700;color:#fff}
+.badge{font-size:.7rem;background:#1d4ed8;color:#fff;padding:1px 7px;border-radius:99px;font-weight:600}
+.badge.g{background:#065f46}
+.sp{flex:1}
+.btn{cursor:pointer;border:1px solid var(--border);background:var(--card);color:var(--text);padding:5px 12px;border-radius:5px;font-size:.82rem;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s}
+.btn:hover{background:#475569}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#0f172a;font-weight:600}
+.btn.s{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn.d{background:var(--accent3);border-color:var(--accent3);color:#fff}
+.btn.a{background:var(--accent);color:#0f172a;border-color:var(--accent);font-weight:600}
+input[type=file]{display:none}
+.toolbar{position:absolute;top:10px;left:10px;background:rgba(30,41,59,.92);border:1px solid var(--border);padding:4px 6px;border-radius:8px;display:flex;gap:4px;z-index:5}
+.sep{width:1px;background:var(--border);margin:0 3px}
+.main{display:flex;flex:1;overflow:hidden}
+.canvas-area{flex:1;position:relative;overflow:hidden;background:#090d16;min-width:0}
+.cw{width:100%;height:100%;overflow:auto;position:relative;cursor:default}
+.cw.pan{cursor:grab}.cw.add{cursor:crosshair}
+canvas{display:block;transform-origin:0 0}
+.loader{position:absolute;inset:0;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:20}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sidebar{width:340px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.panel{border-bottom:1px solid var(--border);padding:12px}
+.pt{font-size:.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.pt .v{color:var(--accent);font-size:.8rem;text-transform:none;font-weight:500}
+.fg{margin-bottom:8px}
+.fg label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:3px}
+.ctrl{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:5px;font-size:.85rem}
+.ctrl:focus{outline:none;border-color:var(--accent)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.r3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.g7{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:6px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:6px}
+.g7 button,.g3 button{padding:6px 0;text-align:center;font-weight:600;font-size:.85rem}
+.sl{max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:5px;background:var(--card)}
+.si{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.78rem;display:flex;justify-content:space-between;cursor:pointer}
+.si:hover{background:#475569}.si.sel{background:rgba(56,189,248,.18);border-left:3px solid var(--accent)}
+.jp{background:#042f2e;border:1px solid #065f46;color:#6ee7b7;font-family:Consolas,monospace;font-size:.82rem;line-height:1.45;padding:8px;border-radius:5px;white-space:pre-wrap;resize:none;min-height:80px}
+.hint{font-size:.72rem;color:var(--dim);margin-top:6px;line-height:1.4}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0}
+.tab{padding:8px 14px;cursor:pointer;font-size:.82rem;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s}
+.tab:hover{color:var(--text)}.tab.act{color:var(--accent);border-bottom-color:var(--accent)}
+.tb{display:none;flex:1;overflow-y:auto}
+.tb.act{display:flex;flex-direction:column}
+</style>
 </head>
 <body>
-
-  <header>
-    <div class="brand">
-      <h1>ScoreOCR Toolkit</h1>
-      <span class="badge">全格式・簡譜・五線譜校對</span>
+<div class="topbar">
+  <div class="brand"><h1>&#x1F3BC; ScoreOCR Toolkit</h1><span class="badge">v3.00</span><span class="badge g">SheetMusicOMR</span></div>
+  <span class="sp"></span>
+  <a href="/" class="btn" style="text-decoration:none;color:#fff;background:#3b82f6;border-color:#2563eb;" title="切換至 SheetMusicOMR 視覺工作台">🏠 工作台</a>
+  <a href="/editor/studio/default" class="btn" style="text-decoration:none;color:#fff;background:#8b5cf6;border-color:#7c3aed;" title="切換至 Score Studio 專業製譜編輯器">🎼 Score Studio</a>
+  <input type="file" id="fi" accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf,.docx,.txt,.json,image/*">
+  <button class="btn" onclick="document.getElementById('fi').click()">&#x1F4C1; 上傳檔案</button>
+  <button class="btn" onclick="loadSample()">&#x1F3BC; 示範</button>
+  <button class="btn p" id="bRec" onclick="runRecognize()">&#x26A1; 辨識轉換</button>
+  <button class="btn s" id="bXml" style="display:none" onclick="dlXml()">&#x1F4E5; MusicXML</button>
+  <button class="btn s" id="bJp" style="display:none;background:#0d9488;border-color:#14b8a6" onclick="dlJp()">&#x1F3BC; 簡譜</button>
+</div>
+<div class="main">
+  <div class="canvas-area" id="ca">
+    <div class="toolbar">
+      <button class="btn a" id="tSel" onclick="setTool('select')">&#x1F446; 選取</button>
+      <button class="btn" id="tAdd" onclick="setTool('add')">&#x2795; 新增</button>
+      <button class="btn" id="tPan" onclick="setTool('pan')">&#x1F590; 拖曳</button>
+      <div class="sep"></div>
+      <button class="btn a" id="tJp" onclick="togJp()">&#x1F3BC; 簡譜標記 ON</button>
+      <div class="sep"></div>
+      <button class="btn" onclick="zBy(0.15)">+&#x1F50D;</button>
+      <button class="btn" onclick="zBy(-0.15)">-&#x1F50D;</button>
+      <button class="btn" onclick="zReset()">1:1</button>
+      <div class="sep"></div>
+      <span id="zLab" style="font-size:.78rem;color:var(--muted);align-self:center">100%</span>
     </div>
-    <div class="actions">
-      <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.bmp,.webp,.tiff,.pdf,.docx,.txt,.json,image/*" style="display: none;">
-      <button onclick="document.getElementById('fileInput').click()">📁 上傳樂譜/檔案 (PDF/圖片/Word/TXT/JSON)</button>
-      <button onclick="loadSampleScore()">🎼 載入示範樂譜</button>
-      <button class="primary" id="btnRecognize" onclick="runRecognition()">⚡ 辨識與轉換</button>
-      <button class="success" id="btnDownloadXml" onclick="downloadXml()" style="display: none;">📥 下載 MusicXML</button>
-      <button class="success" id="btnDownloadJianpu" onclick="downloadJianpuFile()" style="display: none; background-color: #0d9488; border-color: #14b8a6;">🎼 下載簡譜 (.txt)</button>
+    <div class="cw" id="cw"><canvas id="cv"></canvas></div>
+    <div class="loader" id="ld"><div class="spinner"></div><span id="ldTxt">處理中...</span></div>
+  </div>
+  <div class="sidebar">
+    <div class="tabs">
+      <div class="tab act" onclick="swTab('e')">&#x1F39B; 編輯器</div>
+      <div class="tab" onclick="swTab('j')">&#x1F3BC; 簡譜</div>
+      <div class="tab" onclick="swTab('s')">&#x1F4CB; 符號</div>
+      <div class="tab" onclick="swTab('p')">&#x1F4BE; 專案</div>
     </div>
-  </header>
-
-  <div class="main-container">
-    <!-- Canvas Viewport -->
-    <div class="canvas-viewport">
-      <div class="canvas-toolbar">
-        <button id="toolSelect" class="active" onclick="setTool('select')">👆 選取</button>
-        <button id="toolAdd" onclick="setTool('add')">➕ 新增音符</button>
-        <button id="toolPan" onclick="setTool('pan')">✋ 拖曳平移</button>
-        <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
-        <button id="btnToggleJianpu" class="active" onclick="toggleJianpuDisplay()">🎼 簡譜標記 (開)</button>
-        <div style="width: 1px; height: 22px; background: var(--border-color); margin: 0 4px;"></div>
-        <button onclick="changeZoom(0.15)">🔍 放大</button>
-        <button onclick="changeZoom(-0.15)">🔎 縮小</button>
-        <button onclick="resetZoom()">1:1 復原</button>
-      </div>
-
-      <div class="canvas-wrapper" id="canvasWrapper">
-        <canvas id="scoreCanvas"></canvas>
-      </div>
-
-      <div id="loadingOverlay">
-        <div class="spinner"></div>
-        <p id="loadingText">正在處理檔案並進行樂譜辨識...</p>
+    <!-- Editor tab -->
+    <div class="tb act" id="tb-e">
+      <div class="panel">
+        <div class="pt">音符校對 <span class="v" id="sId">未選取</span></div>
+        <div class="fg">
+          <label>音高</label>
+          <div class="g7">
+            <button class="btn" onclick="sBase('C')">C</button><button class="btn" onclick="sBase('D')">D</button><button class="btn" onclick="sBase('E')">E</button><button class="btn" onclick="sBase('F')">F</button><button class="btn" onclick="sBase('G')">G</button><button class="btn" onclick="sBase('A')">A</button><button class="btn" onclick="sBase('B')">B</button>
+          </div>
+          <div class="g3">
+            <button class="btn" id="a0" onclick="sAcc('')">本位</button><button class="btn" id="a1" onclick="sAcc('#')">升</button><button class="btn" id="a2" onclick="sAcc('b')">降</button>
+          </div>
+          <div class="row">
+            <select class="ctrl" id="oct" onchange="uPitch()">
+              <option value="2">八度 2</option><option value="3">八度 3</option><option value="4" selected>八度 4</option><option value="5">八度 5</option><option value="6">八度 6</option>
+            </select>
+            <input class="ctrl" id="pIn" placeholder="例如 C#4" onchange="pManual()">
+          </div>
+        </div>
+        <div class="fg"><label>時值</label><select class="ctrl" id="dur" onchange="fc('duration',this.value)"><option value="whole">全</option><option value="half">二分</option><option value="quarter" selected>四分</option><option value="eighth">八分</option><option value="16th">十六</option><option value="32nd">三十二</option></select></div>
+        <div class="fg"><label>類型</label><select class="ctrl" id="typ" onchange="fc('type',this.value)"><option value="note">音符</option><option value="rest">休止符</option><option value="chord">和弦</option><option value="clef">譜號</option><option value="barline">小節線</option></select></div>
+        <div class="fg"><label>座標 X Y W H</label>
+          <div class="r3"><input class="ctrl" id="cx" type="number" placeholder="X" onchange="cc('x',this.value)"><input class="ctrl" id="cy" type="number" placeholder="Y" onchange="cc('y',this.value)"><input class="ctrl" id="cW" type="number" placeholder="W" onchange="cc('width',this.value)"></div>
+          <div class="row" style="margin-top:4px"><input class="ctrl" id="cH" type="number" placeholder="H" onchange="cc('height',this.value)"><button class="btn d" style="flex:1" onclick="delSym()">刪除</button></div>
+        </div>
+        <p class="hint">&#x1F79C; 箭頭鍵微調（Shift 快速），Delete 刪除，拖曳右下調整大小。</p>
       </div>
     </div>
-
-    <!-- Sidebar Inspector -->
-    <div class="sidebar">
-      <!-- Selected Symbol Inspector -->
-      <div class="section">
-        <div class="section-title">
-          <span>音符檢視與校對</span>
-          <span id="selectedIdText" style="color: var(--primary);">未選取</span>
+    <!-- Jianpu tab -->
+    <div class="tb" id="tb-j">
+      <div class="panel">
+        <div class="pt">簡譜預覽</div>
+        <div class="row" style="margin-bottom:8px">
+          <div class="fg"><label>調號</label><select class="ctrl" id="jk" onchange="rJp()"><option value="C" selected>1=C</option><option value="G">1=G</option><option value="D">1=D</option><option value="A">1=A</option><option value="F">1=F</option><option value="Bb">1=Bb</option></select></div>
+          <div class="fg"><label>拍號</label><select class="ctrl" id="jm" onchange="rJp()"><option value="4/4" selected>4/4</option><option value="3/4">3/4</option><option value="2/4">2/4</option><option value="6/8">6/8</option></select></div>
         </div>
-
-        <div id="inspectorForm">
-          <div class="form-group">
-            <label>音高 (Pitch) 與對應簡譜</label>
-            <div class="pitch-pad">
-              <button onclick="setBasePitch('C')">C</button>
-              <button onclick="setBasePitch('D')">D</button>
-              <button onclick="setBasePitch('E')">E</button>
-              <button onclick="setBasePitch('F')">F</button>
-              <button onclick="setBasePitch('G')">G</button>
-              <button onclick="setBasePitch('A')">A</button>
-              <button onclick="setBasePitch('B')">B</button>
-            </div>
-            <div class="accidental-pad">
-              <button id="btnAccNone" onclick="setAccidental('')">♮ 本位</button>
-              <button id="btnAccSharp" onclick="setAccidental('#')">♯ 升記號</button>
-              <button id="btnAccFlat" onclick="setAccidental('b')">♭ 降記號</button>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <select id="octaveSelect" onchange="updatePitchFromComponents()">
-                <option value="2">八度 2</option>
-                <option value="3">八度 3</option>
-                <option value="4" selected>八度 4 (中央C)</option>
-                <option value="5">八度 5</option>
-                <option value="6">八度 6</option>
-              </select>
-              <input type="text" id="pitchInput" placeholder="例如 C#4" onchange="onPitchManualChange()">
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>音符時值 (Duration)</label>
-            <select id="durationSelect" onchange="onFieldChange('duration', this.value)">
-              <option value="whole">全音符 (Whole)</option>
-              <option value="half">二分音符 (Half)</option>
-              <option value="quarter" selected>四分音符 (Quarter)</option>
-              <option value="eighth">八分音符 (Eighth)</option>
-              <option value="16th">十六分音符 (16th)</option>
-              <option value="32nd">三十二分音符 (32nd)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>類型 (Type)</label>
-            <select id="typeSelect" onchange="onFieldChange('type', this.value)">
-              <option value="note">音符 (Note)</option>
-              <option value="rest">休止符 (Rest)</option>
-              <option value="chord">和弦音 (Chord)</option>
-              <option value="clef">譜號 (Clef)</option>
-              <option value="barline">小節線 (Barline)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>外框座標 (X, Y, W, H)</label>
-            <div class="coord-grid">
-              <input type="number" id="coordX" onchange="onCoordChange('x', this.value)" placeholder="X">
-              <input type="number" id="coordY" onchange="onCoordChange('y', this.value)" placeholder="Y">
-              <input type="number" id="coordW" onchange="onCoordChange('width', this.value)" placeholder="W">
-              <input type="number" id="coordH" onchange="onCoordChange('height', this.value)" placeholder="H">
-            </div>
-          </div>
-
-          <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <button class="danger" style="flex: 1;" onclick="deleteSelectedSymbol()">🗑 刪除此音符</button>
-          </div>
+        <div class="fg"><textarea class="jp" id="jpArea" rows="8" readonly></textarea></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" style="flex:1" onclick="cpyJp()">複製</button>
+          <button class="btn s" style="flex:1;background:#0d9488;border-color:#14b8a6" onclick="dlJp()">下載簡譜</button>
         </div>
       </div>
-
-      <!-- Jianpu Converter & Live Preview Section -->
-      <div class="section">
-        <div class="section-title">
-          <span>🎼 簡譜即時轉換與預覽</span>
-          <span style="font-size: 0.75rem; color: #34d399;">Numbered Notation</span>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;">
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">調號 (Key 1=)</label>
-            <select id="jianpuKeySelect" onchange="onJianpuConfigChange()">
-              <option value="C" selected>1 = C</option>
-              <option value="G">1 = G</option>
-              <option value="D">1 = D</option>
-              <option value="A">1 = A</option>
-              <option value="F">1 = F</option>
-              <option value="Bb">1 = B♭</option>
-              <option value="Eb">1 = E♭</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 2px;">拍號 (Meter)</label>
-            <select id="jianpuMeterSelect" onchange="onJianpuConfigChange()">
-              <option value="4/4" selected>4/4 拍</option>
-              <option value="3/4">3/4 拍</option>
-              <option value="2/4">2/4 拍</option>
-              <option value="6/8">6/8 拍</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <textarea id="jianpuPreviewText" rows="6" readonly class="form-control" style="font-family: Consolas, monospace; font-size: 0.88rem; line-height: 1.45; color: #a7f3d0; background: #064e3b22; border-color: #059669; white-space: pre-wrap; word-break: break-all; resize: vertical;"></textarea>
-        </div>
-        <div style="display: flex; gap: 6px;">
-          <button class="primary" style="flex: 1;" onclick="copyJianpuToClipboard()">📋 複製簡譜</button>
-          <button class="success" style="flex: 1; background-color: #0d9488; border-color: #14b8a6;" onclick="downloadJianpuFile()">💾 下載簡譜</button>
-        </div>
+    </div>
+    <!-- Symbols tab -->
+    <div class="tb" id="tb-s">
+      <div class="panel" style="flex:1;display:flex;flex-direction:column">
+        <div class="pt">符號清單 <span class="badge" id="sc">0</span></div>
+        <div class="sl" id="sList"></div>
+        <p class="hint">點擊選擇；在編輯器 tab 修改屬性。</p>
       </div>
-
-      <!-- Symbols Overview List -->
-      <div class="section" style="flex: 1; display: flex; flex-direction: column;">
-        <div class="section-title">
-          <span>辨識音符清單</span>
-          <span id="symbolCountBadge" class="badge">0 個音符</span>
+    </div>
+    <!-- Project tab -->
+    <div class="tb" id="tb-p">
+      <div class="panel">
+        <div class="pt">專案管理</div>
+        <div class="fg"><label>專案名稱</label><input class="ctrl" id="pName" placeholder="我的樂譜" value=""></div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+          <button class="btn p" onclick="saveProj()">儲存專案</button>
+          <button class="btn" onclick="document.getElementById('pLoad').click()">載入專案 (JSON)</button>
+          <input type="file" id="pLoad" accept=".json" onchange="loadProj(event)">
         </div>
-        <div class="symbol-list" id="symbolListContainer">
-          <!-- Filled dynamically -->
-        </div>
-        <p class="hint">提示：在畫布上直接點選音符外框即可校對；拖曳框框可調整位置，按 Delete 鍵可直接刪除。</p>
+        <p class="hint">專案包含符號、設定、背景影像。</p>
       </div>
-
-      <!-- Export Actions -->
-      <div class="section" style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="success" style="width: 100%; justify-content: center; padding: 9px 0;" onclick="exportCorrectedXml()">
-          💾 儲存並匯出校對後 MusicXML
-        </button>
-        <button class="success" style="width: 100%; justify-content: center; padding: 9px 0; background-color: #0d9488; border-color: #14b8a6;" onclick="downloadJianpuFile()">
-          🎼 儲存並匯出校對後簡譜 (.txt)
-        </button>
+      <div class="panel">
+        <div class="pt">匯出</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn s" onclick="expXml()">匯出 MusicXML</button>
+          <button class="btn s" style="background:#0d9488;border-color:#14b8a6" onclick="expJp()">匯出簡譜</button>
+        </div>
       </div>
     </div>
   </div>
+</div>
+<script>
+const API='';
+let syms=[],sel=null,img=null,curBase='C',curAcc='';
+let tool='select',zoom=1,jpOn=true;
+let jpUrl=null,xmUrl=null,cFile=null;
+let isPan=false,isDr=false,dMode=null,pSX=0,pSY=0,sSX=0,sSY=0,dOX=0,dOY=0;
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d'),cw=document.getElementById('cw');
 
-  <script>
-    const canvas = document.getElementById('scoreCanvas');
-    const ctx = canvas.getContext('2d');
-    const wrapper = document.getElementById('canvasWrapper');
+window.onload=()=>loadSample();
 
-    let currentImage = null;
-    let currentImageFile = null;
-    let symbols = [];
-    let selectedSymbol = null;
-    let currentTool = 'select'; // 'select', 'add', 'pan'
-    let zoomLevel = 1.0;
-    let downloadUrl = null;
-    let jianpuDownloadUrl = null;
-    let showJianpuBadges = true;
+function setTool(t){
+  tool=t;
+  ['tSel','tAdd','tPan'].forEach((id,i)=>{
+    const b=document.getElementById(id);
+    b.classList.toggle('a',['select','add','pan'][i]===t);
+  });
+  cw.className='cw';
+  if(t==='pan')cw.classList.add('pan');
+  if(t==='add')cw.classList.add('add');
+}
+function togJp(){
+  jpOn=!jpOn;
+  const b=document.getElementById('tJp');
+  b.classList.toggle('a',jpOn);
+  b.textContent='&#x1F3BC; 簡譜標記 '+(jpOn?'ON':'OFF');
+  redraw();
+}
+function zBy(d){zoom=Math.max(.3,Math.min(3,zoom+d));apZ();}
+function zReset(){zoom=1;apZ();}
+function apZ(){cv.style.transform='scale('+zoom+')';document.getElementById('zLab').textContent=Math.round(zoom*100)+'%';}
+function showL(m){document.getElementById('ldTxt').textContent=m||'處理中...';document.getElementById('ld').style.display='flex';}
+function hideL(){document.getElementById('ld').style.display='none';}
+function setImg(src){const i=new Image();i.onload=()=>{cv.width=i.width;cv.height=i.height;redraw();};i.src=src;}
 
-    // Pan state
-    let isPanning = false;
-    let panStartX = 0, panStartY = 0;
-    let scrollStartX = 0, scrollStartY = 0;
+async function loadSample(){
+  showL('載入示範...');
+  try{
+    const r=await fetch(API+'/api/sample');
+    const d=await r.json();
+    setImg(d.image_url);
+    syms=d.symbols||[];
+    xmUrl=d.musicxml||null;
+    document.getElementById('bXml').style.display=xmUrl?'':'none';
+    if(d.jianpu_text)document.getElementById('jpArea').value=d.jianpu_text;
+    sel=syms[0]||null;
+    refAll();
+  }catch(e){console.error(e);}
+  hideL();
+}
 
-    // Drag/Resize state
-    let isDragging = false;
-    let dragMode = null; // 'move', 'resize-se'
-    let dragOffsetX = 0, dragOffsetY = 0;
+document.getElementById('fi').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;cFile=f;
+  const ext=f.name.split('.').pop().toLowerCase();
+  if(['png','jpg','jpeg','bmp','webp','tiff'].includes(ext)){
+    const r=new FileReader();
+    r.onload=ev=>{setImg(ev.target.result);syms=[];sel=null;refAll();};
+    r.readAsDataURL(f);
+  }else{runRecognize();}
+  e.target.value='';
+});
 
-    // Initialize
-    window.onload = () => {
-      loadSampleScore();
-    };
-
-    function setTool(tool) {
-      currentTool = tool;
-      document.querySelectorAll('.canvas-toolbar button').forEach(b => {
-        if (b.id !== 'btnToggleJianpu') b.classList.remove('active');
-      });
-      if (tool === 'select') document.getElementById('toolSelect').classList.add('active');
-      if (tool === 'add') document.getElementById('toolAdd').classList.add('active');
-      if (tool === 'pan') document.getElementById('toolPan').classList.add('active');
-
-      wrapper.className = 'canvas-wrapper';
-      if (tool === 'pan') wrapper.classList.add('pan-mode');
-      if (tool === 'add') wrapper.classList.add('add-mode');
+async function runRecognize(){
+  if(!cFile&&!cv.width){alert('請先上傳檔案或載入示範！');return;}
+  showL('正在辨識...');
+  try{
+    let fd=new FormData();
+    if(cFile)fd.append('file',cFile);
+    else{const b=await new Promise(r=>cv.toBlob(r,'image/png'));fd.append('file',b,'score.png');}
+    const r=await fetch(API+'/recognize',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.success!==false){
+      syms=d.symbols||[];cFile=null;setImg(d.image_url);
+      xmUrl=d.xml_name?API+'/download/'+d.xml_name:null;
+      jpUrl=d.jianpu_name?API+'/download/'+d.jianpu_name:null;
+      document.getElementById('bXml').style.display=xmUrl?'':'none';
+      document.getElementById('bJp').style.display=jpUrl?'':'none';
+      if(d.jianpu_text)document.getElementById('jpArea').value=d.jianpu_text;
+      sel=syms[0]||null;refAll();
+    }else{
+      showModal(d.error_type||'錯誤',d.error||''+(d.suggestion?'\n\n'+d.suggestion:''));
+      if(d.image_url){setImg(d.image_url);syms=[];sel=null;refAll();}
     }
+  }catch(err){alert('連線錯誤: '+err);}
+  finally{hideL();}
+}
 
-    function toggleJianpuDisplay() {
-      showJianpuBadges = !showJianpuBadges;
-      const btn = document.getElementById('btnToggleJianpu');
-      if (showJianpuBadges) {
-        btn.classList.add('active');
-        btn.innerText = '🎼 簡譜標記 (開)';
-      } else {
-        btn.classList.remove('active');
-        btn.innerText = '🎼 簡譜標記 (關)';
-      }
-      redraw();
+// Mouse
+cv.addEventListener('mousedown',e=>{
+  if(tool==='pan'){isPan=true;pSX=e.clientX;pSY=e.clientY;sSX=cw.scrollLeft;sSY=cw.scrollTop;return;}
+  const c=gC(e);
+  if(tool==='add'){
+    const s={id:'sym-'+Date.now().toString(36),type:'note',pitch:'C4',duration:'quarter',x:Math.round(c.x-9),y:Math.round(c.y-8),width:18,height:16,confidence:1};
+    syms.push(s);sel=s;refAll();return;
+  }
+  let hit=null,mode='move';
+  for(let i=syms.length-1;i>=0;i--){
+    const s=syms[i];
+    if(c.x>=s.x&&c.x<=s.x+s.width&&c.y>=s.y&&c.y<=s.y+s.height){
+      hit=s;if(c.x>=s.x+s.width-8&&c.y>=s.y+s.height-8)mode='resize';break;
     }
-
-    function showLoading(msg) {
-      document.getElementById('loadingText').innerText = msg;
-      document.getElementById('loadingOverlay').style.display = 'flex';
-    }
-
-    function hideLoading() {
-      document.getElementById('loadingOverlay').style.display = 'none';
-    }
-
-    // Load Image onto Canvas
-    function setImage(src, callback) {
-      const img = new Image();
-      img.onload = () => {
-        currentImage = img;
-        canvas.width = img.width;
-        canvas.height = img.height;
-        redraw();
-        if (callback) callback();
-      };
-      img.src = src;
-    }
-
-    // Load Built-in Sample
-    async function loadSampleScore() {
-      showLoading("載入示範樂譜 (tabi.png)...");
-      try {
-        const resp = await fetch('/api/sample');
-        const data = await resp.json();
-        setImage(data.image_url, () => {
-          symbols = data.symbols || [];
-          downloadUrl = data.musicxml || null;
-          if (downloadUrl) {
-            document.getElementById('btnDownloadXml').style.display = 'inline-flex';
-          }
-          selectedSymbol = symbols[0] || null;
-          updateSidebar();
-          refreshJianpuPreview();
-          redraw();
-          hideLoading();
-        });
-      } catch (e) {
-        console.error(e);
-        hideLoading();
-      }
-    }
-
-    // Handle User File Upload (Support PDF, DOCX, TXT, JSON, BMP, PNG, JPG, etc.)
-    document.getElementById('fileInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      currentImageFile = file;
-
-      const filename = file.name.toLowerCase();
-      const isDirectImage = filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg') || filename.endsWith('.bmp') || filename.endsWith('.webp') || filename.endsWith('.tiff');
-
-      if (isDirectImage) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          setImage(event.target.result, () => {
-            symbols = [];
-            selectedSymbol = null;
-            updateSidebar();
-            redraw();
-          });
-        };
-        reader.readAsDataURL(file);
-      } else {
-        // Document formats (PDF, DOCX, TXT, JSON) -> Trigger server-side recognition & rendering
-        runRecognition();
-      }
-    });
-
-    // Run OMR Recognition
-    async function runRecognition() {
-      if (!currentImage && !currentImageFile) {
-        alert("請先上傳樂譜檔案或載入示範譜！");
-        return;
-      }
-      showLoading("正在解析檔案、辨識樂譜並轉換簡譜與五線譜...");
-      try {
-        let formData = new FormData();
-        if (currentImageFile) {
-          formData.append('file', currentImageFile);
-        } else {
-          // fetch canvas image as blob
-          const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-          formData.append('file', blob, 'score.png');
-        }
-
-        const resp = await fetch('/recognize', {
-          method: 'POST',
-          body: formData
-        });
-        const result = await resp.json();
-        if (resp.ok && result.success !== false) {
-          symbols = result.symbols || [];
-          downloadUrl = result.musicxml || null;
-          jianpuDownloadUrl = result.jianpu_url || null;
-
-          if (downloadUrl) {
-            document.getElementById('btnDownloadXml').style.display = 'inline-flex';
-          }
-          if (jianpuDownloadUrl) {
-            document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
-          }
-          if (result.jianpu_text) {
-            document.getElementById('jianpuPreviewText').value = result.jianpu_text;
-          }
-
-          const applyPostUpdate = () => {
-            selectedSymbol = symbols[0] || null;
-            updateSidebar();
-            if (!result.jianpu_text) {
-              refreshJianpuPreview();
-            }
-            redraw();
-          };
-
-          if (result.image_url) {
-            setImage(result.image_url, applyPostUpdate);
-          } else {
-            applyPostUpdate();
-          }
-        } else {
-          // 若後端有回傳影像路徑，仍確保影像載入至畫布
-          if (result.image_url) {
-            setImage(result.image_url, () => {
-              symbols = [];
-              selectedSymbol = null;
-              updateSidebar();
-              redraw();
-            });
-          }
-          const isNoStaff = result.error_type === "NO_STAFFS_FOUND";
-          showNoticeModal(
-            isNoStaff ? "🎼" : "⚠️",
-            isNoStaff ? "未偵測到標準五線譜 (No Staffs Found)" : "樂譜辨識提示",
-            result.error || "樂譜自動辨識未完成。",
-            result.suggestion || "請確認樂譜是否為標準五線譜格式，或使用手動標註/簡譜功能。",
-            true
-          );
-        }
-      } catch (err) {
-        alert("連線或處理發生錯誤: " + err);
-      } finally {
-        hideLoading();
-      }
-    }
-
-    function downloadXml() {
-      if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
-      }
-    }
-
-    // Jianpu Helper: Calculate Jianpu Note from Pitch & Key
-    function getPitchToJianpuNumber(pitchStr, key = 'C') {
-      if (!pitchStr) return '';
-      const match = pitchStr.match(/^([A-G])([#b]?)([0-9]?)$/);
-      if (!match) return pitchStr;
-      const [_, step, acc, octStr] = match;
-      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-      const enharmonics = { 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#' };
-      let normNote = step + (acc || '');
-      if (enharmonics[normNote]) normNote = enharmonics[normNote];
-      const keyNorm = enharmonics[key] || key;
-      const noteIdx = noteNames.indexOf(normNote);
-      const keyIdx = noteNames.indexOf(keyNorm);
-      if (noteIdx === -1 || keyIdx === -1) return normNote;
-
-      const semitoneDiff = (noteIdx - keyIdx + 12) % 12;
-      const scaleMap = { 0: '1', 1: '#1', 2: '2', 3: '#2', 4: '3', 5: '4', 6: '#4', 7: '5', 8: '#5', 9: '6', 10: 'b7', 11: '7' };
-      let jianpuNum = scaleMap[semitoneDiff] || '?';
-
-      const oct = octStr ? parseInt(octStr) : 4;
-      if (oct >= 5) {
-        jianpuNum += '̇'; // high octave dot
-      } else if (oct <= 3) {
-        jianpuNum += '̣'; // low octave dot
-      }
-      return jianpuNum;
-    }
-
-    // Canvas Redraw
-    function redraw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (currentImage) {
-        ctx.drawImage(currentImage, 0, 0);
-      }
-
-      const activeKey = document.getElementById('jianpuKeySelect') ? document.getElementById('jianpuKeySelect').value : 'C';
-
-      // Draw all symbols
-      symbols.forEach((sym) => {
-        const isSelected = selectedSymbol && selectedSymbol.id === sym.id;
-
-        // Bounding Box Fill & Stroke
-        ctx.lineWidth = isSelected ? 2.5 : 1.5;
-        if (isSelected) {
-          ctx.strokeStyle = '#facc15';
-          ctx.fillStyle = 'rgba(250, 204, 21, 0.25)';
-        } else if (sym.type === 'rest') {
-          ctx.strokeStyle = '#f97316';
-          ctx.fillStyle = 'rgba(249, 115, 22, 0.15)';
-        } else if (sym.type === 'chord') {
-          ctx.strokeStyle = '#a855f7';
-          ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
-        } else {
-          ctx.strokeStyle = '#06b6d4';
-          ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
-        }
-
-        ctx.fillRect(sym.x, sym.y, sym.width, sym.height);
-        ctx.strokeRect(sym.x, sym.y, sym.width, sym.height);
-
-        // Pitch / Label Text
-        const label = sym.pitch || sym.type;
-        if (label) {
-          ctx.font = 'bold 11px sans-serif';
-          ctx.fillStyle = isSelected ? '#facc15' : '#ffffff';
-          ctx.shadowColor = 'rgba(0,0,0,0.8)';
-          ctx.shadowBlur = 4;
-          ctx.fillText(label, sym.x, sym.y - 4);
-          ctx.shadowBlur = 0;
-        }
-
-        // Jianpu Badge Overlay
-        if (showJianpuBadges) {
-          let jBadge = '';
-          if (sym.type === 'rest') {
-            jBadge = '0';
-          } else if (sym.pitch) {
-            jBadge = getPitchToJianpuNumber(sym.pitch, activeKey);
-          }
-
-          if (jBadge) {
-            ctx.font = 'bold 11px Consolas, monospace';
-            const textWidth = ctx.measureText(jBadge).width;
-            const badgeW = Math.max(textWidth + 8, 16);
-            const badgeH = 15;
-            const badgeX = sym.x + (sym.width - badgeW) / 2;
-            const badgeY = sym.y + sym.height + 2;
-
-            // Draw badge background
-            ctx.fillStyle = isSelected ? '#854d0e' : '#064e3b';
-            ctx.strokeStyle = isSelected ? '#fde047' : '#34d399';
-            ctx.lineWidth = 1;
-            ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
-            ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
-
-            // Draw badge text
-            ctx.fillStyle = isSelected ? '#fef08a' : '#ecfdf5';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(jBadge, badgeX + badgeW / 2, badgeY + badgeH / 2 + 1);
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'alphabetic';
-          }
-        }
-
-        // Selection Handles
-        if (isSelected) {
-          ctx.fillStyle = '#facc15';
-          const handleSize = 5;
-          ctx.fillRect(sym.x + sym.width - handleSize, sym.y + sym.height - handleSize, handleSize, handleSize);
-        }
-      });
-    }
-
-    // Zoom Controls
-    function changeZoom(delta) {
-      zoomLevel = Math.max(0.3, Math.min(3.0, zoomLevel + delta));
-      applyZoom();
-    }
-
-    function resetZoom() {
-      zoomLevel = 1.0;
-      applyZoom();
-    }
-
-    function applyZoom() {
-      canvas.style.transform = `scale(${zoomLevel})`;
-    }
-
-    // Mouse & Touch Interactions on Canvas
-    function getCanvasCoords(e) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-      };
-    }
-
-    canvas.addEventListener('mousedown', (e) => {
-      if (currentTool === 'pan') {
-        isPanning = true;
-        panStartX = e.clientX;
-        panStartY = e.clientY;
-        scrollStartX = wrapper.scrollLeft;
-        scrollStartY = wrapper.scrollTop;
-        return;
-      }
-
-      const { x, y } = getCanvasCoords(e);
-
-      if (currentTool === 'add') {
-        const newSym = {
-          id: `sym-${Date.now().toString().slice(-4)}`,
-          type: 'note',
-          pitch: 'C4',
-          duration: 'quarter',
-          x: Math.round(x - 9),
-          y: Math.round(y - 8),
-          width: 18,
-          height: 16,
-          confidence: 1.0
-        };
-        symbols.push(newSym);
-        selectedSymbol = newSym;
-        updateSidebar();
-        refreshJianpuPreview();
-        redraw();
-        return;
-      }
-
-      // Check hit on existing symbols (reverse to pick topmost)
-      let hit = null;
-      let mode = 'move';
-      for (let i = symbols.length - 1; i >= 0; i--) {
-        const s = symbols[i];
-        if (x >= s.x && x <= s.x + s.width && y >= s.y && y <= s.y + s.height) {
-          hit = s;
-          if (x >= s.x + s.width - 8 && y >= s.y + s.height - 8) {
-            mode = 'resize-se';
-          }
-          break;
-        }
-      }
-
-      selectedSymbol = hit;
-      if (hit) {
-        isDragging = true;
-        dragMode = mode;
-        dragOffsetX = x - hit.x;
-        dragOffsetY = y - hit.y;
-      }
-      updateSidebar();
-      redraw();
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (isPanning) {
-        const dx = e.clientX - panStartX;
-        const dy = e.clientY - panStartY;
-        wrapper.scrollLeft = scrollStartX - dx;
-        wrapper.scrollTop = scrollStartY - dy;
-        return;
-      }
-
-      if (isDragging && selectedSymbol) {
-        const { x, y } = getCanvasCoords(e);
-        if (dragMode === 'move') {
-          selectedSymbol.x = Math.round(x - dragOffsetX);
-          selectedSymbol.y = Math.round(y - dragOffsetY);
-        } else if (dragMode === 'resize-se') {
-          selectedSymbol.width = Math.max(6, Math.round(x - selectedSymbol.x));
-          selectedSymbol.height = Math.max(6, Math.round(y - selectedSymbol.y));
-        }
-        updateFormCoords();
-        redraw();
-      }
-    });
-
-    window.addEventListener('mouseup', () => {
-      if (isDragging) {
-        refreshJianpuPreview();
-      }
-      isPanning = false;
-      isDragging = false;
-    });
-
-    // Keyboard Shortcuts
-    window.addEventListener('keydown', (e) => {
-      if (!selectedSymbol) return;
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
-
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteSelectedSymbol();
-      } else if (e.key === 'ArrowLeft') {
-        selectedSymbol.x -= e.shiftKey ? 5 : 1;
-        updateFormCoords(); redraw();
-      } else if (e.key === 'ArrowRight') {
-        selectedSymbol.x += e.shiftKey ? 5 : 1;
-        updateFormCoords(); redraw();
-      } else if (e.key === 'ArrowUp') {
-        selectedSymbol.y -= e.shiftKey ? 5 : 1;
-        updateFormCoords(); redraw();
-      } else if (e.key === 'ArrowDown') {
-        selectedSymbol.y += e.shiftKey ? 5 : 1;
-        updateFormCoords(); redraw();
-      }
-    });
-
-    // Sidebar & Inspector Functions
-    function updateSidebar() {
-      document.getElementById('symbolCountBadge').innerText = `${symbols.length} 個符號`;
-
-      if (selectedSymbol) {
-        document.getElementById('selectedIdText').innerText = selectedSymbol.id;
-        document.getElementById('pitchInput').value = selectedSymbol.pitch || '';
-        document.getElementById('durationSelect').value = selectedSymbol.duration || 'quarter';
-        document.getElementById('typeSelect').value = selectedSymbol.type || 'note';
-        updateFormCoords();
-        parsePitchToControls(selectedSymbol.pitch);
-      } else {
-        document.getElementById('selectedIdText').innerText = "未選取";
-        document.getElementById('pitchInput').value = '';
-        document.getElementById('coordX').value = '';
-        document.getElementById('coordY').value = '';
-        document.getElementById('coordW').value = '';
-        document.getElementById('coordH').value = '';
-      }
-
-      renderSymbolList();
-    }
-
-    function updateFormCoords() {
-      if (!selectedSymbol) return;
-      document.getElementById('coordX').value = selectedSymbol.x;
-      document.getElementById('coordY').value = selectedSymbol.y;
-      document.getElementById('coordW').value = selectedSymbol.width;
-      document.getElementById('coordH').value = selectedSymbol.height;
-    }
-
-    function onCoordChange(field, val) {
-      if (!selectedSymbol) return;
-      selectedSymbol[field] = parseInt(val) || 0;
-      redraw();
-    }
-
-    function onFieldChange(field, val) {
-      if (!selectedSymbol) return;
-      selectedSymbol[field] = val;
-      redraw();
-      renderSymbolList();
-      refreshJianpuPreview();
-    }
-
-    function parsePitchToControls(pStr) {
-      if (!pStr) return;
-      const match = pStr.match(/^([A-G])([#b]?)([0-9]?)$/);
-      if (match) {
-        const [_, step, acc, oct] = match;
-        if (oct) document.getElementById('octaveSelect').value = oct;
-        setAccidental(acc, false);
-      }
-    }
-
-    let currentBasePitch = 'C';
-    let currentAccidental = '';
-
-    function setBasePitch(p) {
-      currentBasePitch = p;
-      updatePitchFromComponents();
-    }
-
-    function setAccidental(acc, triggerUpdate = true) {
-      currentAccidental = acc;
-      document.getElementById('btnAccNone').className = acc === '' ? 'active' : '';
-      document.getElementById('btnAccSharp').className = acc === '#' ? 'active' : '';
-      document.getElementById('btnAccFlat').className = acc === 'b' ? 'active' : '';
-      if (triggerUpdate) updatePitchFromComponents();
-    }
-
-    function updatePitchFromComponents() {
-      if (!selectedSymbol) return;
-      const oct = document.getElementById('octaveSelect').value;
-      const p = `${currentBasePitch}${currentAccidental}${oct}`;
-      selectedSymbol.pitch = p;
-      document.getElementById('pitchInput').value = p;
-      redraw();
-      renderSymbolList();
-      refreshJianpuPreview();
-    }
-
-    function onPitchManualChange() {
-      if (!selectedSymbol) return;
-      selectedSymbol.pitch = document.getElementById('pitchInput').value.trim();
-      redraw();
-      renderSymbolList();
-      refreshJianpuPreview();
-    }
-
-    function deleteSelectedSymbol() {
-      if (!selectedSymbol) return;
-      symbols = symbols.filter(s => s.id !== selectedSymbol.id);
-      selectedSymbol = symbols[0] || null;
-      updateSidebar();
-      refreshJianpuPreview();
-      redraw();
-    }
-
-    function renderSymbolList() {
-      const list = document.getElementById('symbolListContainer');
-      list.innerHTML = '';
-      symbols.forEach((sym) => {
-        const div = document.createElement('div');
-        div.className = 'symbol-item' + (selectedSymbol && selectedSymbol.id === sym.id ? ' selected' : '');
-        div.innerHTML = `<span><strong>${sym.id}</strong>: ${sym.pitch || sym.type}</span><span style="color:var(--text-muted)">(${sym.x}, ${sym.y})</span>`;
-        div.onclick = () => {
-          selectedSymbol = sym;
-          updateSidebar();
-          redraw();
-        };
-        list.appendChild(div);
-      });
-    }
-
-    // Jianpu Configuration and Live Preview
-    function onJianpuConfigChange() {
-      redraw();
-      refreshJianpuPreview();
-    }
-
-    let jianpuDebounceTimer = null;
-    function refreshJianpuPreview() {
-      clearTimeout(jianpuDebounceTimer);
-      jianpuDebounceTimer = setTimeout(async () => {
-        const key = document.getElementById('jianpuKeySelect').value;
-        const meter = document.getElementById('jianpuMeterSelect').value;
-        try {
-          const resp = await fetch('/api/convert-to-jianpu', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbols: symbols, key: key, meter: meter, title: "即時樂譜" })
-          });
-          const res = await resp.json();
-          if (resp.ok && res.jianpu_text) {
-            document.getElementById('jianpuPreviewText').value = res.jianpu_text;
-            jianpuDownloadUrl = res.download_url || null;
-            if (jianpuDownloadUrl) {
-              document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
-            }
-          }
-        } catch (e) {
-          console.error("Jianpu preview error:", e);
-        }
-      }, 250);
-    }
-
-    function copyJianpuToClipboard() {
-      const text = document.getElementById('jianpuPreviewText').value;
-      if (!text) {
-        alert("目前尚無可複製的簡譜內容！");
-        return;
-      }
-      navigator.clipboard.writeText(text).then(() => {
-        alert("已成功複製簡譜至剪貼簿！");
-      }).catch(err => {
-        alert("複製失敗: " + err);
-      });
-    }
-
-    async function downloadJianpuFile() {
-      if (jianpuDownloadUrl) {
-        window.open(jianpuDownloadUrl, '_blank');
-        return;
-      }
-      showLoading("正在編譯簡譜下載檔案...");
-      try {
-        const key = document.getElementById('jianpuKeySelect').value;
-        const meter = document.getElementById('jianpuMeterSelect').value;
-        const resp = await fetch('/api/export-jianpu', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbols: symbols, key: key, meter: meter, title: "Jianpu Score" })
-        });
-        const res = await resp.json();
-        if (resp.ok && res.download_url) {
-          jianpuDownloadUrl = res.download_url;
-          document.getElementById('btnDownloadJianpu').style.display = 'inline-flex';
-          window.open(res.download_url, '_blank');
-        } else {
-          alert("簡譜匯出失敗: " + (res.error || "未知錯誤"));
-        }
-      } catch (err) {
-        alert("簡譜匯出錯誤: " + err);
-      } finally {
-        hideLoading();
-      }
-    }
-
-    // Export Corrected MusicXML
-    async function exportCorrectedXml() {
-      showLoading("正在將校對後音符重新編譯為標準 MusicXML...");
-      try {
-        const resp = await fetch('/api/export-musicxml', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbols: symbols })
-        });
-        const res = await resp.json();
-        if (resp.ok && res.download_url) {
-          window.open(res.download_url, '_blank');
-        } else {
-          alert("匯出失敗: " + (res.error || "未知錯誤"));
-        }
-      } catch (err) {
-        alert("匯出錯誤: " + err);
-      } finally {
-        hideLoading();
-      }
-    }
-
-    // Modal Dialog Helpers
-    function showNoticeModal(icon, title, message, suggestion, allowManual = true) {
-      document.getElementById('modalIcon').innerText = icon || '⚠️';
-      document.getElementById('modalTitle').innerText = title;
-      document.getElementById('modalBody').innerText = message;
-      document.getElementById('modalSuggestion').innerText = suggestion || '';
-      document.getElementById('modalSuggestion').style.display = suggestion ? 'block' : 'none';
-      document.getElementById('btnModalAction').style.display = allowManual ? 'inline-flex' : 'none';
-      document.getElementById('noticeModal').style.display = 'flex';
-    }
-
-    function closeNoticeModal() {
-      document.getElementById('noticeModal').style.display = 'none';
-    }
-
-    function onModalSwitchManual() {
-      closeNoticeModal();
-      setTool('add');
-    }
-  </script>
-
-    // Modal Dialog Helpers
-    function showNoticeModal(icon, title, message, suggestion, allowManual = true) {
-      document.getElementById('modalIcon').innerText = icon || '⚠️';
-      document.getElementById('modalTitle').innerText = title;
-      document.getElementById('modalBody').innerText = message;
-      document.getElementById('modalSuggestion').innerText = suggestion || '';
-      document.getElementById('modalSuggestion').style.display = suggestion ? 'block' : 'none';
-      document.getElementById('btnModalAction').style.display = allowManual ? 'inline-flex' : 'none';
-      document.getElementById('noticeModal').style.display = 'flex';
-    }
-
-    function closeNoticeModal() {
-      document.getElementById('noticeModal').style.display = 'none';
-    }
-
-    function onModalSwitchManual() {
-      closeNoticeModal();
-      setTool('add');
-    }
-  </script>
-
-  <!-- Notice & Recommendation Modal -->
-  <div id="noticeModal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-header">
-        <span style="font-size: 1.8rem;" id="modalIcon">⚠️</span>
-        <h3 class="modal-title" id="modalTitle">未偵測到五線譜系統</h3>
-      </div>
-      <div class="modal-body" id="modalBody">
-        樂譜自動辨識說明
-      </div>
-      <div class="modal-suggestion" id="modalSuggestion">
-        建議事項
-      </div>
-      <div class="modal-footer">
-        <button onclick="closeNoticeModal()">關閉提示</button>
-        <button class="primary" id="btnModalAction" onclick="onModalSwitchManual()">了解，切換為手動標註 ➕</button>
-      </div>
-    </div>
+  }
+  sel=hit;if(hit){isDr=true;dMode=mode;dOX=c.x-hit.x;dOY=c.y-hit.y;}
+  refAll();redraw();
+});
+window.addEventListener('mousemove',e=>{
+  if(isPan){cw.scrollLeft=sSX-(e.clientX-pSX);cw.scrollTop=sSY-(e.clientY-pSY);return;}
+  if(isDr&&sel){
+    const c=gC(e);
+    if(dMode==='move'){sel.x=Math.round(c.x-dOX);sel.y=Math.round(c.y-dOY);}
+    else{sel.width=Math.max(6,Math.round(c.x-sel.x));sel.height=Math.max(6,Math.round(c.y-sel.y));}
+    refSB();redraw();
+  }
+});
+window.addEventListener('mouseup',()=>{isPan=false;isDr=false;});
+window.addEventListener('keydown',e=>{
+  if(!sel)return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;
+  if(e.key==='Delete'||e.key==='Backspace'){delSym();}
+  else if(e.key==='ArrowLeft'){sel.x-=e.shiftKey?5:1;refSB();redraw();}
+  else if(e.key==='ArrowRight'){sel.x+=e.shiftKey?5:1;refSB();redraw();}
+  else if(e.key==='ArrowUp'){sel.y-=e.shiftKey?5:1;refSB();redraw();}
+  else if(e.key==='ArrowDown'){sel.y+=e.shiftKey?5:1;refSB();redraw();}
+});
+
+function gC(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*(cv.width/r.width),y:(e.clientY-r.top)*(cv.height/r.height)};}
+
+// Draw
+function redraw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const k=document.getElementById('jk').value;
+  syms.forEach(s=>{
+    const sl=sel&&sel.id===s.id;
+    ctx.lineWidth=sl?2.5:1.5;
+    if(sl){ctx.strokeStyle='#facc15';ctx.fillStyle='rgba(250,204,21,.22)';}
+    else if(s.type==='rest'){ctx.strokeStyle='#f97316';ctx.fillStyle='rgba(249,115,22,.13)';}
+    else if(s.type==='chord'){ctx.strokeStyle='#a855f7';ctx.fillStyle='rgba(168,85,247,.13)';}
+    else{ctx.strokeStyle='#06b6d4';ctx.fillStyle='rgba(6,182,212,.13)';}
+    ctx.fillRect(s.x,s.y,s.width,s.height);ctx.strokeRect(s.x,s.y,s.width,s.height);
+    const lb=s.pitch||s.type;
+    if(lb){ctx.font='bold 11px sans-serif';ctx.fillStyle=sl?'#facc15':'#fff';ctx.shadowColor='rgba(0,0,0,.85)';ctx.shadowBlur=4;ctx.fillText(lb,s.x,s.y-4);ctx.shadowBlur=0;}
+    if(jpOn&&(s.type==='note'||s.type==='chord')){const j=p2j(s.pitch,k);if(j)dBadge(ctx,s.x+s.width/2,s.y+s.height+14,j,sl);}
+    else if(jpOn&&s.type==='rest'){dBadge(ctx,s.x+s.width/2,s.y+s.height+14,'0',sl);}
+    if(sl){ctx.fillStyle='#facc15';ctx.fillRect(s.x+s.width-5,s.y+s.height-5,5,5);}
+  });
+}
+
+function dBadge(ct,cx,cy,txt,sl){
+  ct.font='bold 10px Consolas,monospace';
+  const w=ct.measureText(txt).width+8,h=14,x=cx-w/2,y=cy;
+  ct.fillStyle=sl?'#854d0e':'#064e3b';ct.strokeStyle=sl?'#fde047':'#34d399';ct.lineWidth=1;
+  ct.fillRect(x,y,w,h);ct.strokeRect(x,y,w,h);
+  ct.fillStyle=sl?'#fef08a':'#ecfdf5';ct.textAlign='center';ct.textBaseline='middle';
+  ct.fillText(txt,x+w/2,y+h/2);ct.textAlign='left';ct.textBaseline='alphabetic';
+}
+
+function p2j(p,k){
+  if(!p)return'';
+  const m=p.match(/^([A-G])([#b]?)([0-9]?)$/);if(!m)return'';
+  const[_,step,acc,os]=m;
+  const ns=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'],en={'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#'};
+  let n=step+acc;if(en[n])n=en[n];const kn=en[k]||k;
+  const ni=ns.indexOf(n),ki=ns.indexOf(kn);if(ni<0||ki<0)return n;
+  const sm=(ni-ki+12)%12;
+  const mp={0:'1',1:'#1',2:'2',3:'#2',4:'3',5:'4',6:'#4',7:'5',8:'#5',9:'6',10:'b7',11:'7'};
+  let j=mp[sm]||'?';
+  const o=os?parseInt(os):4;
+  if(o>=5)j+='\u0307';else if(o<=3)j+='\u0323';
+  return j;
+}
+
+// Sidebar refresh
+function refAll(){refSB();refJP();refSL();redraw();}
+function refSB(){
+  if(!sel){document.getElementById('sId').textContent='未選取';document.getElementById('pIn').value='';document.getElementById('dur').value='quarter';document.getElementById('typ').value='note';['cx','cy','cW','cH'].forEach(id=>document.getElementById(id).value='');return;}
+  document.getElementById('sId').textContent=sel.id;
+  document.getElementById('pIn').value=sel.pitch||'';
+  document.getElementById('dur').value=sel.duration||'quarter';
+  document.getElementById('typ').value=sel.type||'note';
+  document.getElementById('cx').value=sel.x;document.getElementById('cy').value=sel.y;
+  document.getElementById('cW').value=sel.width;document.getElementById('cH').value=sel.height;
+  if(sel.pitch){
+    const m=sel.pitch.match(/^([A-G])([#b]?)([0-9]?)$/);
+    if(m){const[,st,ac,oc]=m;curBase=st;curAcc=ac;if(oc)document.getElementById('oct').value=oc;sAcc(ac,false);}
+  }
+}
+function fc(f,v){if(sel){sel[f]=v;refSB();refSL();refJP();redraw();}}
+function cc(f,v){if(sel){sel[f]=parseInt(v)||0;redraw();}}
+function pManual(){if(sel){sel.pitch=document.getElementById('pIn').value.trim();refSB();refSL();refJP();redraw();}}
+function sBase(p){curBase=p;uPitch();}
+function sAcc(a,tr=true){
+  curAcc=a;
+  ['a0','a1','a2'].forEach((id,i)=>{const b=document.getElementById(id);b.className=i===(a===''?0:a==='#'?1:2)?'active':'';});
+  if(tr)uPitch();
+}
+function uPitch(){
+  if(!sel)return;
+  const o=document.getElementById('oct').value;
+  sel.pitch=curBase+curAcc+o;
+  document.getElementById('pIn').value=sel.pitch;
+  refSL();refJP();redraw();
+}
+function delSym(){if(!sel)return;syms=syms.filter(s=>s.id!==sel.id);sel=syms[0]||null;refAll();}
+
+// Jianpu
+function refJP(){clearTimeout(window._dt);window._dt=setTimeout(async()=>{
+  const k=document.getElementById('jk').value,m=document.getElementById('jm').value;
+  try{
+    const r=await fetch(API+'/api/convert-to-jianpu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms,key:k,meter:m,title:'即時'})});
+    const d=await r.json();
+    if(r.ok&&d.jianpu_text)document.getElementById('jpArea').value=d.jianpu_text;
+  }catch(e){}
+},200);}
+function cpyJp(){const t=document.getElementById('jpArea').value;if(!t){alert('無內容');return;}navigator.clipboard.writeText(t).then(()=>alert('已複製')).catch(e=>alert('失敗: '+e));}
+
+// Symbol list
+function refSL(){
+  document.getElementById('sc').textContent=syms.length;
+  const list=document.getElementById('sList');list.innerHTML='';
+  const cols={note:'#06b6d4',rest:'#f97316',chord:'#a855f7',clef:'#64748b',barline:'#64748b'};
+  syms.forEach(s=>{
+    const d=document.createElement('div');
+    d.className='si'+(sel&&sel.id===s.id?' sel':'');
+    const dc=cols[s.type]||'#64748b';
+    d.innerHTML='<span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+dc+';margin-right:6px"></span><strong>'+s.id+'</strong> '+(s.pitch||s.type)+'</span><span style="color:var(--dim)">('+s.x+','+s.y+')</span>';
+    d.onclick=()=>{sel=s;refAll();};
+    list.appendChild(d);
+  });
+}
+
+// Export
+async function expXml(){
+  if(!syms.length){alert('無符號');return;}
+  showL('編譯 MusicXML...');
+  try{
+    const r=await fetch(API+'/api/export-musicxml',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms})});
+    const d=await r.json();
+    if(r.ok&&d.download_url){xmUrl=d.download_url;window.open(xmUrl,'_blank');}
+    else alert('匯出失敗: '+(d.error||''));
+  }catch(e){alert('錯誤: '+e);}finally{hideL();}
+}
+async function expJp(){
+  if(!syms.length){alert('無符號');return;}
+  showL('編譯簡譜...');
+  const k=document.getElementById('jk').value,m=document.getElementById('jm').value;
+  try{
+    const r=await fetch(API+'/api/export-jianpu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms,key:k,meter:m,title:'Jianpu'})});
+    const d=await r.json();
+    if(r.ok&&d.download_url){jpUrl=d.download_url;window.open(jpUrl,'_blank');}
+    else alert('失敗: '+(d.error||''));
+  }catch(e){alert('錯誤: '+e);}finally{hideL();}
+}
+function dlXml(){if(xmUrl)window.open(xmUrl,'_blank');}
+function dlJp(){
+  if(jpUrl){window.open(jpUrl,'_blank');return;}
+  const k=document.getElementById('jk').value,m=document.getElementById('jm').value;
+  fetch(API+'/api/export-jianpu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols:syms,key:k,meter:m,title:'Jianpu'})})
+    .then(r=>r.json()).then(d=>{if(d.download_url)window.open(d.download_url,'_blank');else alert('失敗');});
+}
+
+// Project
+async function saveProj(){
+  const nm=document.getElementById('pName').value.trim()||'Untitled';
+  let imgD='';try{const b=await new Promise(r=>cv.toBlob(r,'image/png'));imgD=await blob64(b);}catch(e){}
+  showL('儲存專案...');
+  try{
+    const r=await fetch(API+'/api/project/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({project_name:nm,symbols:syms,settings:{key:document.getElementById('jk').value,meter:document.getElementById('jm').value},image_data:imgD})});
+    const d=await r.json();
+    if(d.status==='ok')showModal('儲存成功','專案已儲存。\n下載：'+(d.download_url||'請查伺服器目錄'));
+    else alert('儲存失敗: '+(d.error||''));
+  }catch(e){alert('錯誤: '+e);}finally{hideL();}
+}
+function blob64(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(b);});}
+function loadProj(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=async ev=>{
+    try{
+      const resp=await fetch(API+'/api/project/load',{method:'POST',headers:{'Accept':'application/json'},body:f});
+      const d=await resp.json();
+      if(d.status==='ok'){
+        syms=d.symbols||[];sel=syms[0]||null;
+        document.getElementById('pName').value=d.project_name||'';
+        if(d.settings){if(d.settings.key)document.getElementById('jk').value=d.settings.key;if(d.settings.meter)document.getElementById('jm').value=d.settings.meter;}
+        if(d.image_url)setImg(d.image_url);
+        else{cv.width=800;cv.height=600;}
+        refAll();
+      }else alert('載入失敗: '+(d.error||''));
+    }catch(err){alert('錯誤: '+err);}
+  };
+  r.readAsText(f);e.target.value='';
+}
+
+// Tabs
+function swTab(n){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('act',['e','j','s','p'][i]===n));
+  document.querySelectorAll('.tb').forEach((b,i)=>b.classList.toggle('act',['e','j','s','p'][i]===n));
+}
+
+// Modal
+function showModal(t,m){
+  document.getElementById('modalTitle').textContent=t||'提示';
+  document.getElementById('modalMsg').textContent=m||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+</script>
+
+<!-- Modal dialog -->
+<div id="modal" style="position:fixed;inset:0;background:rgba(15,23,42,.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100">
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;width:90%;max-width:500px;padding:20px;display:flex;flex-direction:column;gap:12px">
+    <h2 id="modalTitle" style="font-size:1rem;font-weight:700"></h2>
+    <pre id="modalMsg" style="background:var(--card);padding:10px;border-radius:6px;font-size:.8rem;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow-y:auto;color:#fde68a"></pre>
+    <div style="display:flex;justify-content:flex-end;gap:8px"><button class="btn" onclick="closeModal()">關閉</button></div>
   </div>
+</div>
 </body>
 </html>

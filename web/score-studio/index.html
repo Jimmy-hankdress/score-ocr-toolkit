@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScoreStudio — 樂譜編輯器</title>
+<link rel="stylesheet" href="/score-studio/score-studio.css">
+</head>
+<body class="ss-body">
+<div id="ss-app">
+  <!-- 頂列：樂譜名稱 | Undo Redo | 播放 練習 | 儲存狀態 | 匯出 | 設定 -->
+  <header class="ss-topbar">
+    <div class="ss-title"><span id="ss-title">ScoreStudio</span>
+      <small id="ss-saved-state" class="ss-faint">尚未載入</small></div>
+    <div class="ss-group">
+      <button id="ss-undo" class="ss-btn" title="復原（Ctrl+Z）">↶ Undo</button>
+      <button id="ss-redo" class="ss-btn" title="重做（Ctrl+Y）">↷ Redo</button>
+    </div>
+    <div class="ss-group">
+      <button id="ss-play" class="ss-btn" title="播放/停止（Space）">▶ 播放</button>
+      <button id="ss-practice" class="ss-btn" title="節拍器 + 1-2 小節預備拍">⊙ 練習</button>
+      <label class="ss-faint" title="預備拍">預備
+        <select id="ss-countin">
+          <option value="0">無</option><option value="1">1 小節</option><option value="2" selected>2 小節</option>
+        </select></label>
+    </div>
+    <div class="ss-group">
+      <button id="ss-save" class="ss-btn" title="立即儲存（Ctrl+S）">💾 儲存</button>
+      <button id="ss-snapshot" class="ss-btn" title="建立快照">📸 快照</button>
+    </div>
+    <div class="ss-group">
+      <select id="ss-export-format">
+        <option value="musicxml">匯出 MusicXML</option>
+        <option value="json">匯出 JSON</option>
+        <option value="tsv">匯出 TSV</option>
+        <option value="txt">匯出 TXT</option>
+      </select>
+      <button id="ss-export" class="ss-btn">⬇ 匯出</button>
+    </div>
+    <div class="ss-group">
+      <button id="ss-source-toggle" class="ss-btn">🖼 原圖校正</button>
+      <a class="ss-btn ss-faint" id="ss-legacy-link" href="#">以舊版編輯器開啟</a>
+    </div>
+  </header>
+
+  <div class="ss-main">
+    <!-- 左側結構欄 -->
+    <aside class="ss-left">
+      <section>
+        <h3>模式</h3>
+        <button data-mode="note" class="ss-mode active" title="N">N 音符</button>
+        <button data-mode="lyric" class="ss-mode" title="L">L 歌詞</button>
+        <button data-mode="chord" class="ss-mode" title="C">C 和弦</button>
+        <button data-mode="anno" class="ss-mode" title="P">P 標注</button>
+        <button data-mode="select" class="ss-mode" title="V / Esc">V 選取</button>
+      </section>
+      <section>
+        <h3>時值（Q/W/E/R/T）</h3>
+        <div class="ss-duration-group">
+          <button data-dur="whole">Q 全</button>
+          <button data-dur="half">W 二分</button>
+          <button data-dur="quarter" class="active">E 四分</button>
+          <button data-dur="eighth">R 八分</button>
+          <button data-dur="sixteenth">T 十六</button>
+          <span class="ss-dur-meta" id="ss-dur-meta"></span>
+        </div>
+      </section>
+      <section>
+        <h3>樂譜設定</h3>
+        <div class="ss-set">調性 <input id="ss-key" maxlength="2"></div>
+        <div class="ss-set">拍號 <input id="ss-tsig" maxlength="4" style="width:44px"></div>
+        <div class="ss-set">速度 <input id="ss-tempo" type="number" min="20" max="240" style="width:56px"></div>
+        <label class="ss-faint" title="§13.2：顯示調性變更＝音級與實際 MIDI 音高不變">
+          <input type="checkbox" id="ss-transpose-display"> 顯示調性變更（不移音高）</label>
+      </section>
+      <section>
+        <h3>小節管理</h3>
+        <button id="ss-add-measure" class="ss-btn">＋ 新增小節</button>
+        <button id="ss-del-measure" class="ss-btn">－ 刪除最後小節</button>
+        <button id="ss-dup-measure" class="ss-btn">⧉ 複製選取小節</button>
+      </section>
+      <section id="ss-history-list">
+        <h3>快照</h3>
+        <div id="ss-history"></div>
+      </section>
+    </aside>
+
+    <!-- 中央 SVG 樂譜畫布 -->
+    <main class="ss-center">
+      <div id="ss-canvas-wrap" class="ss-canvas-wrap">
+        <div id="ss-canvas"></div>
+        <div id="ss-empty" class="ss-faint" style="display:none">載入專案中…</div>
+      </div>
+      <div id="ss-rows" class="ss-rows"></div>
+    </main>
+
+    <!-- 原圖校正面板（雙向定位） -->
+    <aside id="ss-source" class="ss-source hidden">
+      <h3>原圖對照</h3>
+      <div class="ss-source-filter">
+        <label><input type="checkbox" id="ss-f-review"> needs_review</label>
+        <label><input type="checkbox" id="ss-f-unres"> unresolved</label>
+        <label><input type="checkbox" id="ss-f-low"> 低信心</label>
+        <label><input type="checkbox" id="ss-f-over"> 超拍/未滿拍</label>
+        <label><input type="checkbox" id="ss-f-bbox" checked> 顯示 bbox</label>
+      </div>
+      <div id="ss-source-img-wrap"><img id="ss-source-img" alt="原圖" draggable="false"></div>
+      <div id="ss-source-note" class="ss-faint">尚未載入原圖</div>
+      <div class="ss-source-marks">
+        <button id="ss-mark-verified" class="ss-btn">✓ 已確認</button>
+        <button id="ss-mark-corrected" class="ss-btn">✎ 錯誤已修正</button>
+        <button id="ss-mark-unres" class="ss-btn">? 無法判定</button>
+      </div>
+      <div id="ss-source-map" class="ss-faint">選取事件以顯示原圖座標</div>
+    </aside>
+
+    <!-- 右側屬性面板 -->
+    <aside class="ss-right">
+      <h3>選取事件</h3>
+      <div id="ss-props">
+        <p class="ss-faint">未選取事件。<br>點音符 / 和弦 / 歌詞以查看。</p>
+      </div>
+      <h3>拍數驗證</h3>
+      <div id="ss-validation"></div>
+      <h3>匯出前報告</h3>
+      <div id="ss-export-report" class="ss-faint">尚無匯出</div>
+    </aside>
+  </div>
+
+  <!-- 狀態列 -->
+  <footer class="ss-statusbar">
+    <span id="ss-cursor-pos">—</span>
+    <span class="ss-sep">|</span>
+    <span id="ss-zoom-label">100%</span>
+    <span class="ss-sep">|</span>
+    <span id="ss-validation-summary"></span>
+    <span class="ss-sep">|</span>
+    <span id="ss-save-state">尚未儲存</span>
+  </footer>
+
+  <!-- 匯出前報告彈窗 -->
+  <dialog id="ss-report-dialog" class="ss-dialog">
+    <h3>匯出前問題報告（§15.3）</h3>
+    <ul id="ss-report-list"></ul>
+    <p class="ss-faint">可選：取消匯出，或匯出並附警告報告。</p>
+    <menu>
+      <button id="ss-report-cancel">取消匯出</button>
+      <button id="ss-report-continue">匯出並附警告報告</button>
+    </menu>
+  </dialog>
+  <dialog id="ss-conflict-dialog" class="ss-dialog">
+    <h3>版本衝突（HTTP 409）</h3>
+    <p id="ss-conflict-msg"></p>
+    <menu>
+      <button id="ss-conflict-reload">載入最新版</button>
+      <button id="ss-conflict-local">另存本機副本</button>
+    </menu>
+  </dialog>
+</div>
+
+<!-- 依規格 §4：模組順序（先工具、後綁定） -->
+<script src="/score-studio/score-api.js"></script>
+<script src="/score-studio/score-store.js"></script>
+<script src="/score-studio/score-history.js"></script>
+<script src="/score-studio/score-chord-diagram.js"></script>
+<script src="/score-studio/score-layout.js"></script>
+<script src="/score-studio/score-renderer-svg.js"></script>
+<script src="/score-studio/score-interaction.js"></script>
+<script src="/score-studio/score-row-editor.js"></script>
+<script src="/score-studio/score-keyboard.js"></script>
+<script src="/score-studio/score-playback.js"></script>
+<script src="/score-studio/score-source-panel.js"></script>
+<script src="/score-studio/score-validation-ui.js"></script>
+<script src="/score-studio/score-studio.js"></script>
+</body>
+</html>

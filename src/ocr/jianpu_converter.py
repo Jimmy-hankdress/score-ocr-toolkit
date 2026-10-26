@@ -1,22 +1,25 @@
-from typing import List, Dict, Any, Optional
 import re
-from src.ocr.recognizer import Symbol
-
+from typing import Any
 
 # 西洋音名到半音階數 (以 C 為 0)
 PITCH_SEMITONES = {
     "C": 0, "B#": 0,
-    "C#": 1, "DB": 1,
+    "C#": 1, "Db": 1,
+    "C##": 2, "Dbb": 0,
     "D": 2,
-    "D#": 3, "EB": 3,
-    "E": 4, "FB": 4,
-    "F": 5, "E#": 5,
-    "F#": 6, "GB": 6,
+    "D#": 3, "Eb": 3,
+    "D##": 4, "Ebb": 2,
+    "E": 4, "Fb": 4,
+    "E#": 5, "F": 5,
+    "F#": 6, "Gb": 6,
+    "F##": 7, "Gbb": 5,
     "G": 7,
-    "G#": 8, "AB": 8,
+    "G#": 8, "Ab": 8,
+    "G##": 9, "Abb": 7,
     "A": 9,
-    "A#": 10, "BB": 10,
-    "B": 11, "CB": 11,
+    "A#": 10, "Bb": 10,
+    "A##": 11, "Bbb": 9,
+    "B": 11, "Cb": 11, "Cbb": 10,
 }
 
 # 1=key 調號偏移半音
@@ -62,26 +65,29 @@ DURATION_BEATS = {
 }
 
 
-def parse_pitch(pitch_str: Optional[str]):
-    """解析標準音名，如 'C4', 'F#5', 'Bb3' -> (step, accidental, octave)"""
+def parse_pitch(pitch_str: str | None) -> tuple[str, str, int] | None:
+    """解析標準音名，如 'C4', 'F#5', 'Bb3', 'F##5', 'Dbb2' -> (step, accidental, octave)
+
+    支援單升/降 (#, b) 與雙升/降 (##, bb)。
+    """
     if not pitch_str:
         return None
-    match = re.match(r"^([A-Ga-g])([#bB♯♭]?)(\d)?$", pitch_str.strip())
+    # 修正正則：支援 0-2 個臨時記號字元 (#, b, ♯, ♭)
+    match = re.match(r"^([A-Ga-g])([#bB♯♭]{0,2})(\d)?$", pitch_str.strip())
     if not match:
         return None
     step = match.group(1).upper()
     acc = match.group(2)
-    if acc in ("b", "B", "♭"):
-        acc = "b"
-    elif acc in ("#", "♯"):
-        acc = "#"
-    else:
-        acc = ""
+    # 正規化臨時記號
+    acc = acc.replace("♯", "#").replace("♭", "b").replace("B", "b")
+    # 限制最多雙升/雙降
+    if acc.count("#") > 2 or acc.count("b") > 2:
+        return None
     octave = int(match.group(3)) if match.group(3) else 4
     return step, acc, octave
 
 
-def pitch_to_jianpu(pitch_str: Optional[str], key: str = "C") -> str:
+def pitch_to_jianpu(pitch_str: str | None, key: str = "C") -> str:
     """將單一西洋音名轉為簡譜音符字串 (包含高低音點)，如 'C4' -> '1', 'G4' -> '5', 'C5' -> '1̇'"""
     if not pitch_str:
         return "0"
@@ -153,7 +159,7 @@ def symbol_to_jianpu_notation(sym: Any, key: str = "C") -> str:
 
 
 def symbols_to_jianpu_text(
-    symbols: List[Any],
+    symbols: list[Any],
     title: str = "ScoreOCR Jianpu Score",
     key: str = "C",
     meter: str = "4/4",
@@ -163,7 +169,7 @@ def symbols_to_jianpu_text(
     lines.append(f"《{title}》")
     lines.append(f"1={key}   {meter}\n")
 
-    def get_sym_val(s, field, default=0):
+    def get_sym_val(s: Any, field: str, default: Any = 0) -> Any:
         if isinstance(s, dict):
             return s.get(field, default)
         return getattr(s, field, default)

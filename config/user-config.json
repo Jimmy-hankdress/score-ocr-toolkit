@@ -1,0 +1,13 @@
+{
+  "autoSaveSeconds": 20,
+  "lastProjectId": "doc_50d2577829ad",
+  "keepVersions": 20,
+  "ocrLanguages": "chi_tra+eng",
+  "ocrMode": "scoreforge",
+  "measuresPerLine": 4,
+  "theme": "dark",
+  "warnShortMeasures": false,
+  "removeRedInk": true,
+  "scoreStudioEnabled": true,
+  "scoreStudioDefault": false
+}

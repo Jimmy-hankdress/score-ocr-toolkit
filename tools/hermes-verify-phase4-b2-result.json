@@ -1,0 +1,67 @@
+{
+  "project": "doc_62821712c5e4",
+  "results": [
+    {
+      "id": "M0-baseline",
+      "pass": true,
+      "evidence": "order=A,B,MVMARK,D,E,F MVMARK melodyUid=e1lcf6yo 覆寫值={\"duration\":\"half\"}"
+    },
+    {
+      "id": "M1-move-down",
+      "pass": true,
+      "evidence": "下移後 numbers=1,2,3,4,5,6 marks(idx3)=MVMARK marks(idx2)=D"
+    },
+    {
+      "id": "M2-move-up",
+      "pass": true,
+      "evidence": "上移後 numbers=1,2,3,4,5,6 marks(idx2)=MVMARK"
+    },
+    {
+      "id": "M3-first-up-noop",
+      "pass": true,
+      "evidence": "pre undo/redo=2/0 post=2/0 numbers 不變=true"
+    },
+    {
+      "id": "M4-last-down-noop",
+      "pass": true,
+      "evidence": "pre undo/redo=2/0 post=2/0 numbers 不變"
+    },
+    {
+      "id": "M5-cursor-on-moved",
+      "pass": true,
+      "evidence": "游標原 mi=2（被移節）→ 下移後 mi=3 nti=0（應跟隨到 3）"
+    },
+    {
+      "id": "M6-cursor-on-moved-up",
+      "pass": true,
+      "evidence": "游標原 mi=3（被移節）→ 上移後 mi=2（應跟隨到 2）"
+    },
+    {
+      "id": "M7-cursor-on-other",
+      "pass": true,
+      "evidence": "游標 mi=0（非被移/被頂節）→ 移 idx2 後 mi=0（應不變）"
+    },
+    {
+      "id": "M8-uid-override-invariant",
+      "pass": true,
+      "evidence": "MVMARK idx 3→4 前後 JSON 完全相同（uids [\"e1lcf6yo\",\"ed72amp\",\"e9vhknj\",\"e1rhqyqm\"]＋覆寫 [\"e1lcf6yo\"] 未重建）"
+    },
+    {
+      "id": "M9-undo-steps",
+      "pass": true,
+      "evidence": "起=A,B,D,E,MVMARK,F 兩移後=A,D,B,E,F,MVMARK undo×2 後=A,B,D,E,MVMARK,F（應還原到起）"
+    },
+    {
+      "id": "M10-save-reload",
+      "pass": true,
+      "evidence": "重載前 marks=A,B,D,E,MVMARK,F 重載後=A,B,D,E,MVMARK,F（順序一致）"
+    },
+    {
+      "id": "M11-console",
+      "pass": true,
+      "evidence": "console errors=(none)（400 數=0）"
+    }
+  ],
+  "pass": 12,
+  "fail": 0
+}

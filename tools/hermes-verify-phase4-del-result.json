@@ -1,0 +1,87 @@
+{
+  "project": "doc_57c9d6eb921c",
+  "results": [
+    {
+      "id": "D0-setup",
+      "pass": true,
+      "evidence": "count=3 marks=M0,M1,M2 M1 melodyUid=e1n0ct4i M1 覆寫值={\"duration\":\"half\"}（M1 melodyEvents 數=4）"
+    },
+    {
+      "id": "D1-delete",
+      "pass": true,
+      "evidence": "刪 M1 後 count=2 marks=M0,M2 numbers=1,2（M1 消失、順序 M0,M2、編號 1,2）"
+    },
+    {
+      "id": "D2-others-unchanged",
+      "pass": true,
+      "evidence": "剩餘節 source 雜湊未變：idx0(M0)=e96d6f3db4cd(=before e96d6f3db4cd)、idx1(M2)=c09dcd5435e1(=before c09dcd5435e1)"
+    },
+    {
+      "id": "D3-cursor-reasonable",
+      "pass": true,
+      "evidence": "刪游標所在節(M1,mi=1)→游標落補位 idx1(=M2) mi=1 nti=0"
+    },
+    {
+      "id": "D4-undo-restores",
+      "pass": true,
+      "evidence": "undo 後 count=3 marks=M0,M1,M2 numbers=1,2,3 三節內容雜湊=[ e96d6f3db4cd,2d7ea799f0a1,c09dcd5435e1 ] 全=before[ e96d6f3db4cd,2d7ea799f0a1,c09dcd5435e1 ]"
+    },
+    {
+      "id": "D5-undo-full-json",
+      "pass": true,
+      "evidence": "被刪節 M1 完整恢復：marks=M1、覆寫值[e1n0ct4i]={\"duration\":\"half\"}、melodyEvents[4] uid0=e1n0ct4i"
+    },
+    {
+      "id": "D6-undo-cursor",
+      "pass": true,
+      "evidence": "undo 還原游標→ mi=1 nti=0（=刪前游標 M1）"
+    },
+    {
+      "id": "D7-redo-matches-delete",
+      "pass": true,
+      "evidence": "redo 後 count=2 marks=M0,M2 numbers=1,2＝D1 刪除態（M0/M2 source 雜湊=before）"
+    },
+    {
+      "id": "D8-second-undo",
+      "pass": true,
+      "evidence": "再 undo 後 count=3 marks=M0,M1,M2 M1 source 雜湊=2d7ea799f0a1（=before，可再恢復）"
+    },
+    {
+      "id": "D9-stack-cursor",
+      "pass": true,
+      "evidence": "最終 undoLen=0 redoLen=1（未異常堆積）；游標 mi=1 nti=0（在 3 節內合法）"
+    },
+    {
+      "id": "D10-server-persist-separate",
+      "pass": true,
+      "evidence": "【server 持久化・單獨報告】client undo/redo 未受影響；本 doc 含 event model → saveCurrentDoc 400 數=0；目前 server 端 marks=M0,M1,M2（event model 未持久化屬既有 400 問題，非刪除邏輯缺陷）"
+    }
+  ],
+  "pass": 11,
+  "fail": 0,
+  "fingerprints": {
+    "before": [
+      "e96d6f3db4cd",
+      "2d7ea799f0a1",
+      "c09dcd5435e1"
+    ],
+    "afterDelete": [
+      "e96d6f3db4cd",
+      "c09dcd5435e1"
+    ],
+    "afterUndo": [
+      "e96d6f3db4cd",
+      "2d7ea799f0a1",
+      "c09dcd5435e1"
+    ],
+    "afterRedo": [
+      "e96d6f3db4cd",
+      "c09dcd5435e1"
+    ],
+    "afterUndo2": [
+      null,
+      "2d7ea799f0a1",
+      null
+    ]
+  }
+}

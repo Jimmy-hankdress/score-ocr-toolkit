@@ -1,12 +1,15 @@
-import cv2
-import numpy as np
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Optional
+
+import cv2
+
+from src.ocr.logging_config import get_logger
 from src.ocr.recognizer import Symbol
 
+logger = get_logger(__name__)
 
-def parse_musicxml_notes(xml_path: str) -> List[dict]:
+
+def parse_musicxml_notes(xml_path: str) -> list[dict]:
     """從 MusicXML 檔案中解析音符資訊（音高、時值、小節等）。"""
     path = Path(xml_path)
     if not path.exists():
@@ -45,14 +48,15 @@ def parse_musicxml_notes(xml_path: str) -> List[dict]:
                     }
                 )
     except Exception as e:
-        print(f"Error parsing MusicXML notes: {e}")
+        logger.error("Error parsing MusicXML notes: %s", e)
+        logger.debug("MusicXML parsing error details", exc_info=True)
     return notes
 
 
 def extract_score_symbols(
     image_path: str,
-    musicxml_path: Optional[str] = None,
-) -> List[Symbol]:
+    musicxml_path: str | None = None,
+) -> list[Symbol]:
     """利用 OpenCV 形態學運算去除五線譜線並提取音符外框 (Bounding Box)，
     並與 MusicXML 解析的音高／時值進行對齊。
     """
@@ -96,8 +100,8 @@ def extract_score_symbols(
     # 若有 MusicXML，載入已解析的音符
     xml_notes = parse_musicxml_notes(musicxml_path) if musicxml_path else []
 
-    symbols: List[Symbol] = []
-    total_boxes = len(boxes)
+    symbols: list[Symbol] = []
+    len(boxes)
 
     for i, (x, y, w, h) in enumerate(boxes):
         sym_id = f"sym-{i+1}"

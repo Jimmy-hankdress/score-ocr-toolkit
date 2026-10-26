@@ -1,0 +1,104 @@
+/* ScoreStudio — 離線、無 CDN、無外部字型（§1.2/§18） */
+* { box-sizing: border-box; }
+:root {
+  --bg:#151a22; --panel:#1c2330; --panel2:#232c3d; --line:#313c50;
+  --text:#dbe4f0; --dim:#8b98ad; --accent:#4f8cff; --good:#3fbf7f; --warn:#f0b429; --bad:#e5535a;
+  --canvas:#f7f8fa; --ink:#1c2230; --cursor:#ff8c00;
+}
+html,body{height:100%;margin:0}
+body.ss-body{background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI","Microsoft JhengHei",sans-serif}
+#ss-app{display:grid;grid-template-rows:auto 1fr auto;height:100%}
+.ss-topbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.ss-title{font-weight:700;font-size:16px;display:flex;flex-direction:column;min-width:180px}
+.ss-title small{font-weight:400;color:var(--dim)}
+.ss-group{display:flex;gap:6px;align-items:center}
+.ss-btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+.ss-btn:hover{border-color:var(--accent)}
+.ss-faint{color:var(--dim);font-size:12px}
+a.ss-btn{text-decoration:none}
+#ss-export-format{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px}
+.ss-main{display:grid;grid-template-columns:230px 1fr auto auto;min-height:0}
+.ss-left,.ss-right{background:var(--panel);padding:10px;overflow:auto;border-right:1px solid var(--line)}
+.ss-right{border-right:none;border-left:1px solid var(--line);min-width:220px}
+.ss-left section{margin-bottom:14px}
+.ss-left h3,.ss-right h3{font-size:12px;color:var(--dim);text-transform:uppercase;margin:10px 0 6px;letter-spacing:.06em}
+.ss-mode,.ss-duration-group button{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:6px;margin:3px 0;cursor:pointer}
+.ss-duration-group{display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.ss-mode.active,.ss-duration-group button.active{border-color:var(--accent);background:#2a3550;color:#fff}
+.ss-set{display:flex;justify-content:space-between;align-items:center;margin:4px 0}
+.ss-set input{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:4px 6px;border-radius:5px;width:64px}
+.ss-center{display:flex;flex-direction:column;min-width:0;min-height:0}
+.ss-canvas-wrap{flex:1;overflow:auto;background:var(--canvas);position:relative}
+#ss-canvas{display:inline-block;min-width:100%;min-height:100%}
+/* 整排行編輯器（§簡譜/歌詞小節整排可輸入） */
+.ss-rows{background:var(--panel);border-top:1px solid var(--line);padding:8px 10px;max-height:44%;overflow:auto}
+.ss-rows h4{margin:0 0 6px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.ss-rows h4 small{text-transform:none;letter-spacing:0;font-weight:400}
+.ss-rowline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}
+.ss-rowcell{display:grid;grid-template-columns:auto 1fr 1fr;gap:4px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:4px 6px}
+.ss-rowcell.active{border-color:var(--accent)}
+.ss-rownum{font-size:11px;color:var(--dim);min-width:18px;text-align:right;font-variant-numeric:tabular-nums}
+.ss-rowcell input{width:100%;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:3px 6px;border-radius:4px;font-size:13px}
+.ss-rowcell input:focus{border-color:var(--accent);outline:none}
+.ss-notes-input{font-family:Consolas,"Segoe UI Symbol",monospace;font-weight:600}
+.ss-lyric-input{color:#93c5fd}
+.ss-rowempty{margin-top:8px}
+.ss-source{width:340px;background:var(--panel);border-left:1px solid var(--line);padding:10px;overflow:auto}
+.ss-source.hidden{display:none}
+#ss-source-img{max-width:100%;border:1px solid var(--line);position:relative}
+#ss-source-img-wrap{position:relative}
+.ss-source-filter{display:grid;grid-template-columns:1fr 1fr;gap:2px;font-size:12px;color:var(--dim);margin-bottom:6px}
+.ss-source-marks{display:flex;gap:4px;margin-top:6px}
+.ss-source-marks .ss-btn{flex:1;padding:4px 2px;font-size:12px}
+.ss-statusbar{display:flex;gap:8px;align-items:center;background:var(--panel);border-top:1px solid var(--line);padding:5px 12px;font-size:12px;color:var(--dim)}
+.ss-sep{opacity:.4}
+/* SVG 元素樣式（規格 §8.2：可選、帶 data-* 屬性） */
+svg.ss-svg{font-family:"Segoe UI","Microsoft JhengHei",sans-serif}
+.ss-m-title{font-size:20px;font-weight:700;fill:var(--ink)}
+.ss-m-meta{font-size:14px;fill:#333}
+.ss-m-meta input{font-size:13px}
+.ss-bar{stroke:#222;stroke-width:1.5}
+.ss-bar.final{stroke-width:3}
+.ss-mnum{font-size:11px;fill:#999}
+.ss-note{font-size:20px;fill:var(--ink);cursor:pointer}
+.ss-note.selected{fill:var(--cursor)}
+.ss-note.playing{fill:#ff5f00}
+.ss-note.lowconf{fill:#b8860b}
+.ss-note.unknown{fill:#999;font-style:italic}
+.ss-dot{fill:var(--ink)}
+.ss-insert{fill:#c9d4e4;font-size:15px;cursor:pointer}
+.ss-insert:hover{fill:var(--accent)}
+.ss-lyric{font-size:14px;fill:#333}
+.ss-chord{font-size:14px;fill:#c0392b;font-weight:600}
+/* §6.6 和弦槽（小節頂端整排，可多和弦並列）＋指法表 SVG */
+.ss-chord-slot-bg{fill:#fff;stroke:#d8dbe2;stroke-width:1}
+.ss-chord-slot.empty .ss-chord-slot-bg{fill:#fbfbfd;stroke-dasharray:3 2}
+.ss-chord-slot.selected .ss-chord-slot-bg{fill:#fff4e6;stroke:var(--cursor);stroke-width:1.5}
+.ss-chord-slot-empty{fill:#c9d4e4;font-size:14px;cursor:pointer}
+.ss-chord-slot{cursor:pointer}
+/* 指法表內（白底黑線，符合附件格式；和弦名稱置圖上方） */
+.cd-bg{fill:#ffffff}
+.cd-name{fill:#000;font-size:10px;font-weight:700;font-family:Georgia,"Times New Roman",serif}
+.cd-string{stroke:#000}
+.cd-x{fill:#dc2626;font-size:7px}
+.cd-open{fill:none;stroke:#000}
+.cd-dot{fill:#000}
+.cd-missing{fill:#999;font-size:9px}
+.cd-bass{fill:#000;font-size:6px}
+.ss-measure{cursor:default}
+.ss-measure.selected{stroke:var(--accent);stroke-width:1;fill:rgba(79,140,255,.06)}
+.ss-measure-warn{fill:rgba(229,83,90,.08)}
+.ss-measure-warnline{stroke:var(--bad);stroke-width:2}
+[data-measure-id]{fill:none}
+.ss-statusbar #ss-save-state.err{color:var(--bad)} .ss-statusbar #ss-save-state.ok{color:var(--good)}
+.ss-dialog{border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);min-width:420px}
+.ss-dialog::backdrop{background:rgba(0,0,0,.5)}
+.ss-dialog ul{max-height:220px;overflow:auto;margin:8px 0;padding-left:18px;font-size:13px}
+.ss-dialog menu{display:flex;gap:8px;justify-content:flex-end}
+.ss-prop-row{display:flex;justify-content:space-between;gap:8px;margin:4px 0;font-size:13px}
+.ss-prop-row .k{color:var(--dim)}
+.ss-chip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;margin:1px 2px}
+.ss-chip.ok{background:#1d3a2a;color:var(--good)} .ss-chip.short{background:#3a2d1d;color:var(--warn)}
+.ss-chip.over{background:#3a1d1f;color:var(--bad)} .ss-chip.unres{background:#3a331d;color:#d0a030}
+.ss-hitem{font-size:12px;color:var(--dim);padding:3px 6px;border-radius:4px;cursor:pointer}
+.ss-hitem:hover{background:var(--panel2);color:var(--text)}
